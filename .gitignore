@@ -1,0 +1,75 @@
+# =========================================================================
+# ROOT .GITIGNORE FOR MYWOWIN (LARAVEL + FLUTTER + DOCKER)
+# =========================================================================
+
+# -------------------------------------------------------------------------
+# Environment & Sensitive Credentials
+# -------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.key
+**/firebase_credentials.json
+auth.json
+
+# -------------------------------------------------------------------------
+# Laravel Dependencies & Storage
+# -------------------------------------------------------------------------
+**/vendor/
+**/node_modules/
+**/npm-debug.log
+**/yarn-error.log
+**/public/storage
+**/public/build
+**/public/hot
+**/storage/logs/*.log
+**/storage/framework/cache/*
+**/storage/framework/sessions/*
+**/storage/framework/views/*
+!**/storage/framework/cache/.gitignore
+!**/storage/framework/sessions/.gitignore
+!**/storage/framework/views/.gitignore
+**/storage/pail
+.phpunit.result.cache
+.phpunit.cache
+
+# -------------------------------------------------------------------------
+# Flutter & Dart Build Artifacts
+# -------------------------------------------------------------------------
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/ios/.symlinks/
+**/*.iml
+**/*.ipr
+**/*.iws
+
+# -------------------------------------------------------------------------
+# IDE & Operating System
+# -------------------------------------------------------------------------
+.idea/
+.vscode/
+.fleet/
+.nova/
+.zed/
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.log
+*.tmp
+*.swp
+*.stackdump
+
+# -------------------------------------------------------------------------
+# Database Dumps (Sensitive Raw Production Data)
+# -------------------------------------------------------------------------
+u259615093_mywowin.sql
+*.sql.gz
+*.sql.zip

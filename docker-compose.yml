@@ -1,0 +1,71 @@
+services:
+  app:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    container_name: mywowin_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./public_html (web fronted + backend):/var/www/html
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - mywowin_net
+    depends_on:
+      - db
+
+  web:
+    image: nginx:alpine
+    container_name: mywowin_web
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./public_html (web fronted + backend):/var/www/html
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - mywowin_net
+    depends_on:
+      - app
+
+  db:
+    image: mariadb:10.11
+    container_name: mywowin_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: u259615093_mywowin
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./u259615093_mywowin.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./reset_passwords.sql:/docker-entrypoint-initdb.d/02_reset_passwords.sql
+    networks:
+      - mywowin_net
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: mywowin_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root
+    networks:
+      - mywowin_net
+    depends_on:
+      - db
+
+networks:
+  mywowin_net:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local

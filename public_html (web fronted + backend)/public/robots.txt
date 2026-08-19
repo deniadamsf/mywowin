@@ -1,0 +1,28 @@
+User-agent: *
+
+# Blokir area Admin & Dashboard User
+Disallow: /admin/
+Disallow: /nova/
+Disallow: /dashboard
+Disallow: /account/
+Disallow: /profile/
+
+# Blokir Auth & Reset Password
+Disallow: /login
+Disallow: /register
+Disallow: /password/
+Disallow: /email/
+
+# Blokir System & API Laravel
+Disallow: /api/
+Disallow: /telescope/
+Disallow: /horizon/
+Disallow: /sanctum/
+
+# Izinkan aset publik (PENTING untuk indeks gambar)
+Allow: /storage/
+Allow: /img/
+Allow: /css/
+Allow: /js/
+
+Sitemap: https://mywowin.com/sitemap.xml
