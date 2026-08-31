@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../../core/theme/wowin_theme.dart';
 import '../providers/catalog_provider.dart';
 import 'product_detail_screen.dart';
 import '../../cart/screens/cart_screen.dart';
 import '../../cart/providers/cart_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../../core/widgets/wowin_cached_image.dart';
+import '../../../core/widgets/offline_indicator.dart';
 
 class AllProductsScreen extends ConsumerStatefulWidget {
   final String initialCategory;
@@ -18,6 +22,7 @@ class AllProductsScreen extends ConsumerStatefulWidget {
 
 class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
   static const Color wowinGreen = Color(0xFF1B5E20);
+  final NumberFormat _currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
   bool _isKartonPrice = false;
   late String _activeCategory;
 
@@ -34,26 +39,29 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
     final catalogState = ref.watch(catalogProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: WowinColors.background,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
+        scrolledUnderElevation: 0,
+        backgroundColor: WowinColors.primaryDark,
+        iconTheme: const IconThemeData(color: Colors.white, size: 20),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(colors: [Color(0xFF0A4A1A), Color(0xFF2E7D32)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            gradient: WowinGradients.royalEmerald,
           ),
         ),
         // --- UBAH TITLE MENJADI KOLOM PENCARIAN AKTIF ---
         title: Container(
           height: 40,
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
           child: TextField(
             autofocus: true, // <-- KUNCI: Keyboard langsung muncul!
+            style: const TextStyle(fontSize: 13.5),
             decoration: const InputDecoration(
               hintText: 'Cari produk Wowin...',
+              hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
               border: InputBorder.none,
-              prefixIcon: Icon(Icons.search, color: Colors.grey, size: 20),
+              prefixIcon: Icon(Icons.search, color: wowinGreen, size: 18),
               contentPadding: EdgeInsets.symmetric(vertical: 10), // Teks pas di tengah
             ),
             onChanged: (value) {
@@ -68,9 +76,9 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
           IconButton(
             icon: Badge(
               isLabelVisible: ref.watch(cartProvider).items.isNotEmpty,
-              label: Text(ref.watch(cartProvider).items.length.toString()),
-              backgroundColor: Colors.orange,
-              child: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+              label: Text(ref.watch(cartProvider).items.length.toString(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              backgroundColor: WowinColors.gold,
+              child: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 22),
             ),
             onPressed: () {
               // Arahkan ke CartScreen dengan cek Auth (sama seperti beranda)
@@ -85,6 +93,7 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
       ),
       body: Column(
         children: [
+          const OfflineBanner(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]),
@@ -159,9 +168,12 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
                   itemCount: products.length,
                   itemBuilder: (context, index) {
                     final product = products[index];
-                    String imageUrl = 'https://via.placeholder.com/150';
-                    if (product['images'] != null && product['images'].isNotEmpty) {
-                      imageUrl = 'https://mywowin.com/storage/${product['images'][0]['image_url']}';
+                    String imageUrl = '';
+                    if (product['images'] != null && product['images'] is List && (product['images'] as List).isNotEmpty) {
+                      final imgPath = product['images'][0]['image_url']?.toString() ?? '';
+                      if (imgPath.isNotEmpty) {
+                        imageUrl = imgPath.startsWith('http') ? imgPath : 'https://mywowin.com/storage/$imgPath';
+                      }
                     }
                     return _buildProductCard(context, product, imageUrl);
                   },
@@ -194,17 +206,18 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
+              AspectRatio(
+                aspectRatio: 1.0,
                 child: Container(
-                  padding: const EdgeInsets.all(12.0), // Memberi jarak aman agar gambar tidak mentok pinggir
+                  padding: const EdgeInsets.all(12.0),
                   decoration: const BoxDecoration(
-                    color: Colors.white, // Latar belakang putih bersih
+                    color: Colors.white,
                     borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                   ),
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.contain, // INI KUNCINYA: Gambar akan tampil utuh 100% tanpa terpotong!
-                    errorBuilder: (ctx, err, stack) => const Icon(Icons.image, color: Colors.grey, size: 50),
+                  child: WowinCachedImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    errorWidget: const Icon(Icons.image, color: Colors.grey, size: 50),
                   ),
                 ),
               ),
@@ -221,7 +234,7 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
                     const SizedBox(height: 6),
                     Text(product['nama_produk'] ?? 'Tanpa Nama', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, height: 1.2, fontWeight: FontWeight.w500)),
                     const SizedBox(height: 8),
-                    Text('Rp ${currentPrice.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+                    Text(_currency.format(currentPrice), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: wowinGreen)),
                     Text(priceLabel, style: TextStyle(color: Colors.grey[500], fontSize: 10)),
                     const SizedBox(height: 12),
                     Material(

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/theme/wowin_theme.dart';
 import '../providers/auth_provider.dart';
 import 'package:intl/intl.dart';
 import 'reward_screen.dart';
@@ -12,21 +13,15 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../order/screens/history_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+  final bool showBackButton;
+  const ProfileScreen({super.key, this.showBackButton = true});
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  // --- WARNA GRADASI DIPERBARUI: LEBIH GELAP & PREMIUM ---
-  static const Color primaryGreen = Color(0xFF0A4A1A);
-  static const Color secondaryGreen = Color(0xFF1B5E20);
-  static const wowinGradient = LinearGradient(
-    colors: [primaryGreen, secondaryGreen],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static const Color primaryGreen = WowinColors.primaryDark;
 
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
@@ -75,44 +70,407 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
 
-      if (token == null) return;
+      // 1. Muat dari cache lokal terlebih dahulu jika ada agar UI langsung tampil instan
+      final cachedProfileStr = prefs.getString('cached_user_profile');
+      if (cachedProfileStr != null) {
+        try {
+          final cachedProfile = json.decode(cachedProfileStr);
+          if (mounted && cachedProfile is Map<String, dynamic>) {
+            setState(() {
+              _userData = cachedProfile;
+              _isLoading = false;
+            });
+          }
+        } catch (_) {}
+      }
+
+      if (token == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
 
       final response = await http.get(
         Uri.parse('$baseUrl/profile'),
         headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
-      );
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        setState(() {
-          _userData = data['data'];
-          _isLoading = false;
-        });
+        if (mounted && data['data'] != null) {
+          setState(() {
+            _userData = data['data'];
+            _isLoading = false;
+          });
+          await prefs.setString('cached_user_profile', json.encode(data['data']));
+        }
       } else {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
+    } finally {
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // --- FUNGSI UNTUK MEMBUKA APLIKASI EMAIL BAWAAN HP ---
-  Future<void> _contactCS() async {
-    final Uri emailUri = Uri(
-      scheme: 'mailto',
-      path: 'cs@mywowin.com',
-      query: 'subject=Bantuan Aplikasi Wowin Food', // Opsional: Otomatis mengisi subjek email
+  // --- FUNGSI CUSTOMER CARE / BANTUAN WOWIN ---
+  void _contactCS() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Layanan Pelanggan & Mitra Wowin',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: WowinColors.textPrimary),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Tim Customer Care PT Wowin Purnomo Putera siap membantu operasional dan pesanan Anda.',
+              style: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.green.shade200)),
+              tileColor: Colors.green.shade50,
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFF25D366),
+                child: Icon(Icons.chat_rounded, color: Colors.white, size: 20),
+              ),
+              title: const Text('WhatsApp Customer Care', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: const Text('0812-1630-1220 (Respon Cepat)', style: TextStyle(fontSize: 12, color: Colors.black54)),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF25D366)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                const String waNumber = '6281216301220';
+                const String text = 'Halo Tim CS Wowin Food, saya membutuhkan bantuan seputar akun/aplikasi/pesanan saya.';
+                final Uri httpsUri = Uri.parse('https://wa.me/$waNumber?text=${Uri.encodeComponent(text)}');
+                final Uri appUri = Uri.parse('whatsapp://send?phone=$waNumber&text=${Uri.encodeComponent(text)}');
+                try {
+                  if (await canLaunchUrl(httpsUri)) {
+                    await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                  } else if (await canLaunchUrl(appUri)) {
+                    await launchUrl(appUri, mode: LaunchMode.externalApplication);
+                  } else {
+                    await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                  }
+                } catch (_) {
+                  await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.blue.shade200)),
+              tileColor: Colors.blue.shade50,
+              leading: const CircleAvatar(
+                backgroundColor: Colors.blue,
+                child: Icon(Icons.email_outlined, color: Colors.white, size: 20),
+              ),
+              title: const Text('Email Resmi Bantuan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: const Text('cs@mywowin.com / admin@mywowin.com', style: TextStyle(fontSize: 12, color: Colors.black54)),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.blue),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final Uri emailUri = Uri(
+                  scheme: 'mailto',
+                  path: 'cs@mywowin.com',
+                  query: 'subject=Bantuan Aplikasi Wowin Food',
+                );
+                try {
+                  await launchUrl(emailUri);
+                } catch (_) {}
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
     );
+  }
 
-    if (await canLaunchUrl(emailUri)) {
-      await launchUrl(emailUri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tidak menemukan aplikasi Email di HP Anda.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
-        );
-      }
-    }
+  // --- MODAL KEBIJAKAN PRIVASI ---
+  void _showPrivacyPolicyModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            children: [
+              Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.privacy_tip_outlined, color: primaryGreen, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Kebijakan Privasi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: WowinColors.textPrimary)),
+                        Text('PT WOWIN PURNOMO PUTERA', style: TextStyle(fontSize: 11.5, color: WowinColors.textSecondary, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  children: [
+                    _buildLegalSection(
+                      '1. Pendahuluan',
+                      'Selamat datang di aplikasi My Wowin. Kebijakan Privasi ini menjelaskan bagaimana PT Wowin Purnomo Putera ("Wowin Food", "Kami") mengumpulkan, menggunakan, menyimpan, dan melindungi data pribadi Anda saat menggunakan aplikasi dan layanan kami.',
+                    ),
+                    _buildLegalSection(
+                      '2. Data Pribadi yang Kami Kumpulkan',
+                      'Untuk mendukung proses transaksi kemitraan dan pengiriman produk, kami mengumpulkan data yang Anda berikan secara langsung, mencakup:\n'
+                      '• Informasi Identitas: Nama lengkap, nama toko/usaha, alamat email, dan nomor telepon/WhatsApp.\n'
+                      '• Informasi Pengiriman: Alamat lengkap toko/gudang dan titik pengantaran.\n'
+                      '• Informasi Transaksi: Riwayat pesanan, pilihan metode pembayaran, catatan pesanan, serta akumulasi poin loyalty membership.',
+                    ),
+                    _buildLegalSection(
+                      '3. Penggunaan Informasi',
+                      'Kami menggunakan data pribadi Anda secara bertanggung jawab untuk tujuan:\n'
+                      '• Memproses, memvalidasi, dan mengantarkan pesanan produk makanan & minuman Wowin.\n'
+                      '• Menghitung tier membership (Bronze, Silver, Gold, Platinum, Diamond) dan diskon kuantitas.\n'
+                      '• Mengirimkan notifikasi status pemesanan, verifikasi pembayaran, serta promo bundling spesial.\n'
+                      '• Layanan bantuan dan penanganan keluhan pelanggan melalui Customer Care resmi.',
+                    ),
+                    _buildLegalSection(
+                      '4. Perlindungan & Keamanan Data',
+                      'Kami berkomitmen menjaga kerahasiaan data Anda dengan standar keamanan digital. Seluruh transmisi data dienkripsi dengan protokol HTTPS/TLS. Kami tidak akan pernah menjual, menyewakan, atau mendistribusikan data pribadi Anda kepada pihak ketiga untuk kepentingan pemasaran pihak lain.',
+                    ),
+                    _buildLegalSection(
+                      '5. Hak Pengguna',
+                      'Anda memiliki hak penuh untuk memeriksa, memperbarui data profil melalui menu Edit Profil di aplikasi, atau mengajukan permohonan penonaktifan akun dengan menghubungi Customer Service resmi kami.',
+                    ),
+                    _buildLegalSection(
+                      '6. Kontak & Layanan Data',
+                      'Apabila Anda memiliki pertanyaan mengenai Kebijakan Privasi ini atau pengelolaan data Anda, silakan hubungi kami melalui:\n'
+                      '• Email: cs@mywowin.com / admin@mywowin.com\n'
+                      '• WhatsApp Resmi: 081216301220\n'
+                      '• Kantor: PT Wowin Purnomo Putera',
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- MODAL DISCLAIMER & KETENTUAN ---
+  void _showDisclaimerModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            children: [
+              Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.gavel_outlined, color: Colors.orange, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Disclaimer & Syarat Ketentuan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: WowinColors.textPrimary)),
+                        Text('Ketentuan Penggunaan Aplikasi My Wowin', style: TextStyle(fontSize: 11.5, color: WowinColors.textSecondary, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  children: [
+                    _buildLegalSection(
+                      '1. Kepemilikan Resmi & Hak Cipta',
+                      'Aplikasi My Wowin, termasuk nama merek dagang, logo grafis, katalog produk, visualisasi materi promosi, dan sistem aplikasi adalah hak kekayaan intelektual resmi dari PT Wowin Purnomo Putera. Penggunaan, penggandaan, atau modifikasi tanpa izin tertulis dilarang keras.',
+                    ),
+                    _buildLegalSection(
+                      '2. Akurasi Informasi & Harga Produk',
+                      'Kami berupaya semaksimal mungkin memastikan data katalog, deskripsi produk, foto, dan harga (pcs maupun karton) ditampilkan secara akurat. Namun, harga grosir, skema promo bundling, dan ketersediaan stok dapat mengalami perubahan sewaktu-waktu sesuai ketentuan pabrik/distributor.',
+                    ),
+                    _buildLegalSection(
+                      '3. Pengiriman & Pemeriksaan Barang',
+                      'Pengiriman produk dilakukan oleh armada distribusi resmi Wowin atau jasa ekspedisi terpercaya. Mitra diwajibkan memeriksa kelengkapan dan kondisi fisik barang saat diterima. Klaim kerusakan atau ketidaksesuaian wajib dilaporkan maksimal 1x24 jam sejak barang diterima.',
+                    ),
+                    _buildLegalSection(
+                      '4. Keamanan Akun & Kata Sandi',
+                      'Pengguna bertanggung jawab penuh untuk menjaga kerahasiaan kata sandi (password) dan aktivitas transaksi yang terjadi pada akun miliknya. PT Wowin Purnomo Putera tidak bertanggung jawab atas kerugian yang ditimbulkan akibat kelalaian pemindahtanganan kredensial akun kepada pihak lain.',
+                    ),
+                    _buildLegalSection(
+                      '5. Hak Perubahan Ketentuan',
+                      'PT Wowin Purnomo Putera berhak melakukan penyesuaian, perbaikan fitur, maupun perubahan syarat & ketentuan ini sewaktu-waktu untuk meningkatkan efektivitas layanan dan kepatuhan hukum.',
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- MODAL PERMOHONAN HAPUS AKUN (GOOGLE PLAY COMPLIANCE) ---
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Hapus / Tutup Akun',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+            ),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Perhatian Sebelum Mengajukan:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.red),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Seluruh saldo poin loyalitas dan tier membership akan hangus secara permanen.\n'
+                '• Akses riwayat pesanan dan nota belanja digital akan dinonaktifkan.\n'
+                '• Sesuai kebijakan Google Play dan keamanan transaksi, permohonan penghapusan akun akan diverifikasi oleh Admin melalui formulir web resmi dalam 1–3 hari kerja untuk memastikan tidak ada pesanan tertunda.',
+                style: TextStyle(fontSize: 12.5, color: Color(0xFF4B5563), height: 1.5),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final Uri url = Uri.parse('https://mywowin.com/delete-account');
+              try {
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              } catch (_) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: const Text('Lanjut ke Form Web', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalSection(String title, String content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: WowinColors.textPrimary),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            content,
+            style: const TextStyle(fontSize: 12.5, color: Color(0xFF4B5563), height: 1.55),
+          ),
+        ],
+      ),
+    );
   }
 
   // --- FUNGSI POP-UP FORMULIR PENGAJUAN MITRA ---
@@ -124,7 +482,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Pengajuan Mitra', style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
@@ -153,7 +511,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Batal', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
             onPressed: () async {
@@ -162,7 +520,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 return;
               }
 
-              Navigator.pop(context); // Tutup dialog
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(dialogCtx); // Tutup dialog
               setState(() => _isLoading = true); // Tampilkan loading
 
               final prefs = await SharedPreferences.getInstance();
@@ -180,15 +539,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 );
 
                 if (response.statusCode == 200) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pengajuan berhasil dikirim!', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: primaryGreen));
+                  if (!mounted) return;
+                  messenger.showSnackBar(const SnackBar(content: Text('Pengajuan berhasil dikirim!', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: primaryGreen));
                   _fetchProfile(); // Tarik ulang data profil agar banner berubah jadi kuning
                 } else {
+                  if (!mounted) return;
                   setState(() => _isLoading = false);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal mengirim pengajuan. Coba lagi.')));
+                  messenger.showSnackBar(const SnackBar(content: Text('Gagal mengirim pengajuan. Coba lagi.')));
                 }
               } catch (e) {
+                if (!mounted) return;
                 setState(() => _isLoading = false);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Terjadi kesalahan jaringan.')));
+                messenger.showSnackBar(const SnackBar(content: Text('Terjadi kesalahan jaringan.')));
               }
             },
             child: const Text('Kirim Pengajuan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -199,6 +561,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _reapplyMembership() async {
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _isLoading = true);
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -210,15 +573,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pengajuan ulang berhasil! Menunggu ACC Admin.'), backgroundColor: primaryGreen));
+        if (!mounted) return;
+        messenger.showSnackBar(const SnackBar(content: Text('Pengajuan ulang berhasil! Menunggu ACC Admin.'), backgroundColor: primaryGreen));
         _fetchProfile(); // Tarik ulang data
       } else {
+        if (!mounted) return;
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal mengajukan ulang.')));
+        messenger.showSnackBar(const SnackBar(content: Text('Gagal mengajukan ulang.')));
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Terjadi kesalahan jaringan.')));
+      messenger.showSnackBar(const SnackBar(content: Text('Terjadi kesalahan jaringan.')));
     }
   }
 
@@ -231,7 +597,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final namaLengkap = _userData?['nama_lengkap'] ?? 'Member Wowin';
     final email = _userData?['email'] ?? '';
     final fotoProfile = _userData?['foto_profile'];
-    final imageUrl = fotoProfile != null ? 'https://mywowin.com/storage/$fotoProfile' : 'https://via.placeholder.com/150';
+    final imageUrl = fotoProfile != null ? 'https://mywowin.com/storage/$fotoProfile' : '';
 
     // Identitas Member
     final memberId = _userData?['id']?.toString() ?? '-';
@@ -244,7 +610,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       } catch (_) {}
     }
 
-    final membership = _userData?['membership'] ?? {};
+    final membership = _userData?['membership'] is Map ? _userData!['membership'] as Map<String, dynamic> : <String, dynamic>{};
     final namaToko = membership['nama_toko'] ?? '-';
     final namaSales = membership['nama_sales'] ?? '-';
     final noHp = membership['no_hp'] ?? '-';
@@ -252,9 +618,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final currentLevel = (membership['level_membership'] ?? 'Bronze').toString().toLowerCase();
 
     // --- JIKA TIDAK ADA MEMBERSHIP, MAKA DIA BELUM PENGAJUAN ---
-    final statusAcc = _userData?['membership'] != null
-        ? (_userData!['membership']['status_acc'] ?? 'pending')
-        : 'belum_pengajuan';
+    final statusAcc = membership['status_acc'] ?? 'belum_pengajuan';
 
     final loginStreak = int.tryParse(_userData?['login_streak']?.toString() ?? '0') ?? 0;
     // Ubah penampung menjadi totalPoints dan ambil dari 'total_points'
@@ -271,20 +635,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final currencyFormat = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: wowinGradient),
-        ),
-        title: const Text(
-            'Profil Membership',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
-        ),
+      backgroundColor: WowinColors.background,
+      appBar: WowinAppBar.standard(
+        title: 'Profil Membership',
+        automaticallyImplyLeading: widget.showBackButton,
       ),
-
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,8 +647,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             // --- HEADER PROGRESS LEVEL ---
             Container(
               width: double.infinity,
-              decoration: const BoxDecoration(gradient: wowinGradient),
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              decoration: const BoxDecoration(gradient: WowinGradients.royalEmerald),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: ['bronze', 'silver', 'gold', 'platinum', 'diamond'].map((level) {
@@ -301,22 +656,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   return Column(
                     children: [
                       Container(
-                        width: 45, height: 45,
+                        width: 40, height: 40,
                         decoration: BoxDecoration(
                           color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
-                          boxShadow: isActive ? [BoxShadow(color: Colors.white.withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 2)] : null,
+                          boxShadow: isActive ? [BoxShadow(color: Colors.white.withValues(alpha: 0.4), blurRadius: 8, spreadRadius: 1)] : null,
                         ),
                         child: Icon(
                           level == 'bronze' || level == 'gold' ? Icons.emoji_events : (level == 'silver' ? Icons.shield : Icons.diamond),
                           color: isActive ? (level == 'bronze' ? Colors.orange[800] : level == 'silver' ? Colors.grey[800] : level == 'gold' ? Colors.amber[600] : level == 'platinum' ? Colors.blue : Colors.purple) : Colors.white.withValues(alpha: 0.3),
-                          size: 24,
+                          size: 20,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         level.toUpperCase(),
-                        style: TextStyle(fontSize: 10, fontWeight: isActive ? FontWeight.bold : FontWeight.w500, color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.4)),
+                        style: TextStyle(fontSize: 9.5, fontWeight: isActive ? FontWeight.bold : FontWeight.w500, color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.4)),
                       )
                     ],
                   );
@@ -376,7 +731,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => EditProfileScreen(userData: _userData!),
+                            builder: (context) => EditProfileScreen(userData: _userData ?? {}),
                           ),
                         );
                         // Jika kembali dengan membawa nilai 'true', otomatis refresh data
@@ -889,9 +1244,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         }),
                         Divider(height: 1, thickness: 1, color: Colors.grey[100], indent: 56),
                         _buildGroupedMenu(context, Icons.headset_mic_outlined, 'Hubungi CS Wowin', () {
-                          // Panggil fungsi email
                           _contactCS();
                         }),
+                        Divider(height: 1, thickness: 1, color: Colors.grey[100], indent: 56),
+                        _buildGroupedMenu(context, Icons.privacy_tip_outlined, 'Kebijakan Privasi', () {
+                          _showPrivacyPolicyModal(context);
+                        }),
+                        Divider(height: 1, thickness: 1, color: Colors.grey[100], indent: 56),
+                        _buildGroupedMenu(context, Icons.gavel_outlined, 'Disclaimer & Ketentuan', () {
+                          _showDisclaimerModal(context);
+                        }),
+                        Divider(height: 1, thickness: 1, color: Colors.grey[100], indent: 56),
+                        _buildGroupedMenu(
+                          context,
+                          Icons.person_remove_outlined,
+                          'Hapus / Tutup Akun',
+                          () {
+                            _showDeleteAccountDialog(context);
+                          },
+                          iconColor: Colors.red.shade700,
+                          iconBgColor: Colors.red.shade50,
+                          textColor: Colors.red.shade700,
+                        ),
                       ],
                     ),
                   ),
@@ -1052,7 +1426,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildGroupedMenu(BuildContext context, IconData icon, String title, VoidCallback onTap) {
+  Widget _buildGroupedMenu(
+    BuildContext context,
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    Color? iconColor,
+    Color? iconBgColor,
+    Color? textColor,
+  }) {
+    final effectiveIconColor = iconColor ?? primaryGreen;
+    final effectiveBgColor = iconBgColor ?? primaryGreen.withValues(alpha: 0.1);
+    final effectiveTextColor = textColor ?? Colors.black87;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1064,11 +1450,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: primaryGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: Icon(icon, color: primaryGreen, size: 20),
+                decoration: BoxDecoration(color: effectiveBgColor, borderRadius: BorderRadius.circular(8)),
+                child: Icon(icon, color: effectiveIconColor, size: 20),
               ),
               const SizedBox(width: 16),
-              Expanded(child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87))),
+              Expanded(child: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: effectiveTextColor))),
               const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
             ],
           ),

@@ -134,6 +134,13 @@
         </tr>
         @endif
 
+        @if (($order->potongan_poin ?? 0) > 0)
+        <tr>
+            <td style="color: #d97706;">Potongan Poin ({{ number_format($order->points_used ?? 0) }} Poin)</td>
+            <td class="text-right" style="color: #d97706;">- Rp{{ number_format($order->potongan_poin, 0, ',', '.') }}</td>
+        </tr>
+        @endif
+
         @if (($order->shipping_fee ?? 0) > 0)
         <tr>
             <td>Biaya Pengiriman</td>

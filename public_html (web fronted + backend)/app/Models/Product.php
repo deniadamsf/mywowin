@@ -47,6 +47,26 @@ class Product extends Model
         return $this->belongsToMany(Bundling::class, 'bundling_product', 'product_id', 'id_bundling');
     }
 
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'product_id', 'id_product')->where('is_hidden', false)->latest();
+    }
+
+    public function allReviews()
+    {
+        return $this->hasMany(Review::class, 'product_id', 'id_product')->latest();
+    }
+
+    public function getAvgRatingAttribute()
+    {
+        return round($this->reviews()->avg('rating') ?: 5.0, 1);
+    }
+
+    public function getReviewsCountAttribute()
+    {
+        return $this->reviews()->count();
+    }
+
     /**
      * =================================================================
      * FUNGSI BARU YANG WAJIB DITAMBAHKAN

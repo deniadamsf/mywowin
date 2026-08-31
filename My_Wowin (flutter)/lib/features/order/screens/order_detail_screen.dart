@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/theme/wowin_theme.dart';
+import 'review_order_screen.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final dynamic order;
   const OrderDetailScreen({super.key, required this.order});
 
-  static const Color wowinGreen = Color(0xFF1B5E20);
-  static const wowinGradient = LinearGradient(
-    colors: [Color(0xFF0A4A1A), Color(0xFF2E7D32)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static const Color wowinGreen = WowinColors.primary;
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -32,9 +30,13 @@ class OrderDetailScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _contactAdmin(String invoice) async {
-    const String waNumber = '6281216301220'; // Ganti dengan nomor WA CS Wowin
-    final String text = 'Halo admin Wowin Food, saya mau konfirmasi mengenai pesanan saya dengan nomor invoice *$invoice*.';
+  Future<void> _contactAdmin(String invoice, [String? paymentMethod, String? total]) async {
+    const String waNumber = '6281216301220';
+    final String text = 'Halo Admin Wowin Food, saya ingin konfirmasi pesanan saya:\n\n'
+        '• *No. Invoice:* $invoice\n'
+        '${total != null ? '• *Total:* $total\n' : ''}'
+        '${paymentMethod != null ? '• *Metode:* ${paymentMethod.toUpperCase()}\n' : ''}\n'
+        'Mohon bantuan untuk diproses. Terima kasih!';
     final Uri url = Uri.parse('https://wa.me/$waNumber?text=${Uri.encodeComponent(text)}');
 
     if (await canLaunchUrl(url)) {
@@ -45,23 +47,21 @@ class OrderDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _getStatusColor(order['status'] ?? 'Pending');
+    final String paymentMethod = (order['payment_method'] ?? 'transfer').toString().toLowerCase();
+    final bool isPending = (order['status'] ?? 'pending').toString().toLowerCase() == 'pending';
 
-    // Asumsi API mengirimkan array item di dalam 'items' atau 'order_items' atau 'details'
     final List<dynamic> orderItems = order['items'] ?? order['order_items'] ?? order['details'] ?? [];
+    final num potonganPoin = num.tryParse(order['potongan_poin']?.toString() ?? '0') ?? 0;
+    final int pointsUsed = int.tryParse(order['points_used']?.toString() ?? '0') ?? 0;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(decoration: const BoxDecoration(gradient: wowinGradient)),
-        title: const Text('Detail Pesanan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
+      backgroundColor: WowinColors.background,
+      appBar: WowinAppBar.standard(title: 'Detail Pesanan'),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- HEADER: INVOICE & STATUS (Sesuai Screenshot Web) ---
+            // --- HEADER: INVOICE & STATUS ---
             Container(
               color: Colors.white,
               padding: const EdgeInsets.all(16),
@@ -71,17 +71,17 @@ class OrderDetailScreen extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('NOMOR PESANAN', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                      const Text('NOMOR PESANAN', style: TextStyle(fontSize: 9.5, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                       const SizedBox(height: 4),
-                      Text(order['invoice_number'] ?? '#INV-UNKNOWN', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(order['invoice_number'] ?? '#INV-UNKNOWN', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: WowinColors.textPrimary)),
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                     child: Text(
                       (order['status'] ?? 'Menunggu Pembayaran').toUpperCase(),
-                      style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: statusColor, fontSize: 10.5, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -89,7 +89,63 @@ class OrderDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // --- DAFTAR PRODUK (Sesuai Screenshot Web) ---
+            // --- KARTU INFORMASI PEMBAYARAN & REKENING ---
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        paymentMethod == 'transfer'
+                            ? Icons.account_balance_rounded
+                            : (paymentMethod == 'cod' ? Icons.local_shipping_rounded : Icons.chat_rounded),
+                        color: wowinGreen,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        paymentMethod == 'transfer'
+                            ? 'Pembayaran: Transfer Bank'
+                            : (paymentMethod == 'cod' ? 'Pembayaran: Cash on Delivery (COD)' : 'Pemesanan via WhatsApp'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (paymentMethod == 'transfer' && isPending) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE3F2FD),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF90CAF9)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Rekening Tujuan Wowin:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
+                          const SizedBox(height: 8),
+                          _buildBankRow(context, 'Bank BCA', '0891234567', 'PT WOWIN PURNOMO PUTERA'),
+                          const Divider(height: 14, color: Color(0xFFBBDEFB)),
+                          _buildBankRow(context, 'Bank BRI', '0123-01-000456-53-0', 'PT SANKE BERSINAR TERANG'),
+                        ],
+                      ),
+                    ),
+                  ] else if (paymentMethod == 'cod') ...[
+                    Text(
+                      'Pesanan akan diantar oleh kurir kami. Mohon siapkan uang pas saat barang diterima.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // --- DAFTAR PRODUK ---
             Container(
               color: Colors.white,
               child: ListView.separated(
@@ -101,7 +157,7 @@ class OrderDetailScreen extends StatelessWidget {
                   if (orderItems.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.all(16.0),
-                      child: Text('Detail item tidak tersedia dari server.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                      child: Text('Detail item pesanan.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                     );
                   }
 
@@ -114,14 +170,17 @@ class OrderDetailScreen extends StatelessWidget {
                   String qty = (item['quantity'] ?? item['qty'] ?? 1).toString();
                   num price = num.tryParse(item['price']?.toString() ?? '0') ?? 0;
 
-                  // Label nama dengan tambahan unit, contoh: "Kecap Manis Wowin Pouch (Pcs)"
                   String displayName = '$itemName (${unit[0].toUpperCase()}${unit.substring(1).toLowerCase()})';
 
-                  String imageUrl = 'https://via.placeholder.com/150';
-                  if (product != null && product['images'] != null && product['images'].isNotEmpty) {
-                    imageUrl = 'https://mywowin.com/storage/${product['images'][0]['image_url']}';
-                  } else if (bundling != null && bundling['barang_bundling'] != null) {
-                    imageUrl = 'https://mywowin.com/storage/${bundling['barang_bundling']}';
+                  String imageUrl = '';
+                  if (product != null && product['images'] != null && product['images'] is List && (product['images'] as List).isNotEmpty) {
+                    final imgPath = product['images'][0]['image_url']?.toString() ?? '';
+                    if (imgPath.isNotEmpty) {
+                      imageUrl = imgPath.startsWith('http') ? imgPath : 'https://mywowin.com/storage/$imgPath';
+                    }
+                  } else if (bundling != null && bundling['barang_bundling'] != null && bundling['barang_bundling'].toString().isNotEmpty) {
+                    final imgPath = bundling['barang_bundling'].toString();
+                    imageUrl = imgPath.startsWith('http') ? imgPath : 'https://mywowin.com/storage/$imgPath';
                   }
 
                   bool isKarton = unit == 'KARTON';
@@ -148,7 +207,6 @@ class OrderDetailScreen extends StatelessWidget {
                             children: [
                               Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                               const SizedBox(height: 8),
-                              // Kotak Qty seperti di web
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
@@ -179,6 +237,94 @@ class OrderDetailScreen extends StatelessWidget {
                 },
               ),
             ),
+
+            // --- BARIS RINCIAN POTONGAN POIN JIKA ADA ---
+            if (potonganPoin > 0) ...[
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.stars_rounded, color: Color(0xFFFFA000), size: 18),
+                        const SizedBox(width: 8),
+                        Text('Potongan Poin ($pointsUsed Poin)', style: const TextStyle(fontSize: 13, color: Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    Text(
+                      '- Rp ${NumberFormat('#,###', 'id_ID').format(potonganPoin)}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            // --- KARTU PENILAIAN PESANAN (JIKA STATUS SELESAI / LUNAS / DIKIRIM) ---
+            if (['selesai', 'completed', 'lunas', 'dikirim'].contains((order['status'] ?? '').toString().toLowerCase())) ...[
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFF8E1), Colors.white],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFFE082)),
+                  boxShadow: [
+                    BoxShadow(color: Colors.amber.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 3)),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.star_rounded, color: Colors.amber, size: 26),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('Beri Penilaian Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF5D4037))),
+                          SizedBox(height: 2),
+                          Text('Bagikan ulasan Anda dan bantu kami meningkatkan pelayanan.', style: TextStyle(fontSize: 10.5, color: Color(0xFF8D6E63))),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ReviewOrderScreen(order: order),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFA000),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        elevation: 0,
+                      ),
+                      child: const Text('Nilai', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -213,7 +359,7 @@ class OrderDetailScreen extends StatelessWidget {
                 icon: const Icon(Icons.chat, color: Colors.white, size: 20),
                 label: const Text('WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), // --- UBAH TEKS DI SINI ---
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20), // Warna hijau khas WhatsApp
+                  backgroundColor: const Color(0xFF1B5E20),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
@@ -222,6 +368,47 @@ class OrderDetailScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBankRow(BuildContext context, String bankName, String accountNumber, String accountHolder) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(bankName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0D47A1))),
+            Text(accountNumber, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+            Text('a.n. $accountHolder', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
+          ],
+        ),
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: accountNumber.replaceAll('-', '').replaceAll(' ', '')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Nomor rekening $bankName berhasil disalin!'), backgroundColor: wowinGreen, duration: const Duration(seconds: 2)),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF90CAF9)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.copy_rounded, size: 13, color: Color(0xFF1565C0)),
+                SizedBox(width: 4),
+                Text('Salin', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1565C0))),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

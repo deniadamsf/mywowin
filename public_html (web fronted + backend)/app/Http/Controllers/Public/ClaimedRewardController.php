@@ -47,35 +47,38 @@ class ClaimedRewardController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-{
-    // Validasi permintaan
-    $request->validate([
-        'reward_id' => 'required|exists:rewards,id', // Pastikan reward ada
-    ]);
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu untuk mengklaim reward.');
+        }
 
-    // Ambil data pengguna yang sedang login
-    $user = Auth::user();
+        $rewardId = $request->reward_id ?? $request->id;
+        if (!$rewardId) {
+            return back()->with('error', 'Pilihan reward tidak valid.');
+        }
 
-    // Ambil data reward berdasarkan ID
-    $reward = Reward::findOrFail($request->reward_id);
+        $user = Auth::user();
+        $reward = Reward::findOrFail($rewardId);
 
-    // Cek apakah poin cukup
-    if ($user->points < $reward->points_required) {
-        return back()->with('error', 'Poin Anda tidak cukup untuk mengklaim reward ini.');
+        // Cek apakah total poin cukup
+        $userPoints = $user->total_points ?? $user->points_today ?? 0;
+        if ($userPoints < $reward->points_required) {
+            return back()->with('error', 'Poin Anda tidak cukup untuk mengklaim reward ini.');
+        }
+
+        // Simpan klaim reward
+        ClaimedReward::create([
+            'user_id' => $user->id,
+            'reward_id' => $reward->id,
+            'status' => 'pending',
+            'claimed_at' => now(),
+        ]);
+
+        // Kurangi total poin pengguna
+        $user->decrement('total_points', $reward->points_required);
+
+        return redirect()->route('rewards.index')->with('success', 'Hore! Reward "' . $reward->nama_reward . '" berhasil diklaim. Silakan hubungi admin cabang untuk pengambilan.');
     }
-
-    // Simpan klaim reward
-    ClaimedReward::create([
-        'user_id' => $user->id,
-        'reward_id' => $reward->id,
-        'claimed_at' => now(),
-    ]);
-
-    // Kurangi poin pengguna
-    $user->decrement('points', $reward->points_required);
-
-    return redirect()->route('rewards.index')->with('success', 'Reward berhasil diklaim!');
-}
 
 
     /**

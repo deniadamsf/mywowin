@@ -7,7 +7,60 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <script src="//unpkg.com/alpinejs" defer></script>
-<meta name="description" content="WOWINFood - Temukan berbagai produk berkualitas dengan harga terbaik">
+<meta name="description" content="WOWINFood - {{ $product->nama_produk }}. Temukan berbagai produk berkualitas dengan harga terbaik">
+
+{{-- Google SEO Schema.org JSON-LD Structured Data untuk Rating & Produk --}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": "{{ $product->nama_produk }}",
+  "image": "{{ $product->images->first() ? (str_starts_with($product->images->first()->image_url, 'http') ? $product->images->first()->image_url : asset('storage/' . $product->images->first()->image_url)) : asset('images/lg-h.png') }}",
+  "description": "{{ $product->rekom_guna ?? $product->nama_produk }}",
+  "sku": "WOWIN-PROD-{{ $product->id_product }}",
+  "brand": {
+    "@type": "Brand",
+    "name": "Wowin Food"
+  },
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "IDR",
+    "price": "{{ (float)($product->harga ?? 0) }}",
+    "availability": "https://schema.org/InStock",
+    "url": "{{ url()->current() }}"
+  }
+  @if(($totalReviews ?? 0) > 0)
+  ,
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "{{ number_format($avgRating ?? 5.0, 1) }}",
+    "reviewCount": "{{ $totalReviews ?? 1 }}",
+    "bestRating": "5",
+    "worstRating": "1"
+  },
+  "review": [
+    @foreach(($reviews ?? []) as $rev)
+    {
+      "@type": "Review",
+      "author": {
+        "@type": "Person",
+        "name": "{{ $rev->is_anonymous ? ($rev->user ? substr($rev->user->name, 0, 1) . '***' : 'Pelanggan Wowin') : ($rev->user ? $rev->user->name : 'Pelanggan Wowin') }}"
+      },
+      "datePublished": "{{ $rev->created_at ? $rev->created_at->format('Y-m-d') : date('Y-m-d') }}",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": "{{ $rev->rating }}",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "reviewBody": "{{ addslashes($rev->komentar ?? 'Produk sangat memuaskan dan berkualitas.') }}"
+    }@if(!$loop->last),@endif
+    @endforeach
+  ]
+  @endif
+}
+</script>
+
 <style>
     /* Impor Font Poppins */
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
@@ -403,6 +456,157 @@
 </div>
 
 </div>   
+</div>
+
+<!-- ========================================================================= -->
+<!-- SEKSI ULASAN & RATING PEMBELI (GOOGLE-READY & INTERAKTIF) -->
+<!-- ========================================================================= -->
+<div class="bg-white shadow-lg rounded-2xl p-6 md:p-8 max-w-[1250px] mx-auto mt-8 border border-gray-100">
+    <div class="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-gray-100 gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <span class="text-amber-500">★</span> Ulasan & Penilaian Pelanggan
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">Ulasan asli dari pembeli terverifikasi produk Wowin</p>
+        </div>
+        <div class="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-xl border border-green-200">
+            <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-xs font-semibold text-green-800">100% Ulasan Terverifikasi Pembeli</span>
+        </div>
+    </div>
+
+    <!-- Rating Summary Dashboard -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-8 my-8 items-center bg-gray-50/70 p-6 rounded-2xl border border-gray-100">
+        <!-- Skor Utama -->
+        <div class="md:col-span-4 text-center md:border-r md:border-gray-200 md:pr-6">
+            <div class="text-5xl font-black text-gray-900 tracking-tight">
+                {{ number_format($avgRating ?? 5.0, 1) }}
+                <span class="text-xl text-gray-400 font-normal">/ 5.0</span>
+            </div>
+            <div class="flex justify-center items-center gap-1 my-2">
+                @for ($i = 1; $i <= 5; $i++)
+                    <svg class="w-6 h-6 {{ $i <= round($avgRating ?? 5) ? 'text-amber-400 fill-amber-400' : 'text-gray-300' }}" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                @endfor
+            </div>
+            <p class="text-xs font-semibold text-gray-500">Berdasarkan {{ $totalReviews ?? 0 }} ulasan pelanggan</p>
+        </div>
+
+        <!-- Distribusi Bintang -->
+        <div class="md:col-span-8 space-y-2">
+            @php
+                $dist = $ratingDistribution ?? [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
+                $totalCount = max($totalReviews ?? 1, 1);
+            @endphp
+            @foreach([5, 4, 3, 2, 1] as $star)
+                @php
+                    $count = $dist[$star] ?? 0;
+                    $percent = ($totalReviews ?? 0) > 0 ? round(($count / $totalReviews) * 100) : ($star == 5 ? 100 : 0);
+                @endphp
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="w-12 font-medium text-gray-600 flex items-center gap-1">{{ $star }} <span class="text-amber-500">★</span></span>
+                    <div class="flex-1 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        <div class="bg-amber-400 h-2.5 rounded-full" style="width: {{ $percent }}%"></div>
+                    </div>
+                    <span class="w-12 text-right text-gray-500 font-medium">{{ $count }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
+    <!-- Daftar Ulasan Pembeli -->
+    <div class="space-y-6 mt-6">
+        @forelse(($reviews ?? []) as $rev)
+            <div class="p-5 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 transition shadow-sm">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-[#16782d]/10 text-[#16782d] font-bold flex items-center justify-center text-sm uppercase">
+                            {{ $rev->is_anonymous ? 'U' : ($rev->user ? substr($rev->user->name, 0, 1) : 'U') }}
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-900 text-sm flex items-center gap-2">
+                                {{ $rev->is_anonymous ? (substr($rev->user->name ?? 'User', 0, 1) . '***') : ($rev->user->name ?? 'Pengguna Wowin') }}
+                                <span class="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded-full font-semibold">Pembeli Terverifikasi</span>
+                            </div>
+                            <div class="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
+                                <span>Cabang {{ $rev->kantor_cabang ?? 'Pusat' }}</span>
+                                <span>•</span>
+                                <span>{{ $rev->created_at ? $rev->created_at->format('d M Y, H:i') : '-' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bintang Ulasan -->
+                    <div class="flex items-center gap-0.5">
+                        @for($s = 1; $s <= 5; $s++)
+                            <svg class="w-4 h-4 {{ $s <= $rev->rating ? 'text-amber-400 fill-amber-400' : 'text-gray-200' }}" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                            </svg>
+                        @endfor
+                    </div>
+                </div>
+
+                <!-- Tag Kualitas Cepat -->
+                @if(!empty($rev->tags) && is_array($rev->tags))
+                    <div class="flex flex-wrap gap-1.5 my-3">
+                        @foreach($rev->tags as $tag)
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                ✓ {{ $tag }}
+                            </span>
+                        @endforeach
+                    </div>
+                @endif
+
+                <!-- Teks Ulasan -->
+                @if($rev->komentar)
+                    <p class="text-sm text-gray-700 mt-2 leading-relaxed">{{ $rev->komentar }}</p>
+                @endif
+
+                <!-- Foto Ulasan -->
+                @if(!empty($rev->foto) && is_array($rev->foto))
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        @foreach($rev->foto as $img)
+                            <a href="{{ str_starts_with($img, 'http') ? $img : asset('storage/' . $img) }}" target="_blank" class="block group overflow-hidden rounded-lg border border-gray-200">
+                                <img src="{{ str_starts_with($img, 'http') ? $img : asset('storage/' . $img) }}" 
+                                     class="w-16 h-16 object-cover group-hover:scale-105 transition duration-200" 
+                                     alt="Foto Ulasan Pembeli">
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
+
+                <!-- Balasan Resmi Admin / Cabang -->
+                @if($rev->balasan_admin)
+                    <div class="mt-4 p-3.5 bg-gray-50 rounded-xl border-l-4 border-[#16782d] text-xs">
+                        <div class="font-bold text-gray-800 flex items-center gap-1.5 mb-1">
+                            <span class="text-[#16782d]">💬 Respon Resmi Wowin ({{ $rev->kantor_cabang ?? 'Pusat' }}):</span>
+                        </div>
+                        <p class="text-gray-600 leading-relaxed">{{ $rev->balasan_admin }}</p>
+                    </div>
+                @endif
+            </div>
+        @empty
+            <div class="text-center py-12 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                <div class="w-14 h-14 mx-auto mb-3 text-gray-300">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                    </svg>
+                </div>
+                <h3 class="text-base font-bold text-gray-700">Belum Ada Ulasan untuk Produk Ini</h3>
+                <p class="text-xs text-gray-500 mt-1 max-w-sm mx-auto">Jadilah yang pertama memberikan penilaian setelah berbelanja melalui aplikasi My Wowin.</p>
+            </div>
+        @endforelse
+
+        <!-- Pagination -->
+        @if(isset($reviews) && method_exists($reviews, 'links'))
+            <div class="pt-4">
+                {{ $reviews->links() }}
+            </div>
+        @endif
+    </div>
 </div>
 
 <br>

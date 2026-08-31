@@ -3,23 +3,21 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/theme/wowin_theme.dart';
 import 'package:intl/intl.dart';
 import 'order_detail_screen.dart';
+import 'review_order_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  final bool showBackButton;
+  const HistoryScreen({super.key, this.showBackButton = true});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  static const Color wowinGreen = Color(0xFF1B5E20); // Disesuaikan dengan Catalog & Cart
-  static const wowinGradient = LinearGradient(
-    colors: [Color(0xFF0A4A1A), Color(0xFF2E7D32)], // Sama persis dengan layar lainnya
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static const Color wowinGreen = WowinColors.primary;
 
   List<dynamic> _orders = [];
   bool _isLoading = true;
@@ -37,10 +35,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final token = prefs.getString('auth_token');
 
       if (token == null) {
-        setState(() {
-          _errorMessage = "Silakan login terlebih dahulu untuk melihat pesanan.";
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _errorMessage = "Silakan login terlebih dahulu untuk melihat pesanan.";
+            _isLoading = false;
+          });
+        }
         return;
       }
 
@@ -50,25 +50,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        setState(() {
-          _orders = data['data'] ?? [];
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _orders = data['data'] ?? [];
+            _isLoading = false;
+            _errorMessage = null;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            _errorMessage = "Gagal memuat data pesanan.";
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _errorMessage = "Gagal memuat data pesanan.";
+          _errorMessage = "Terjadi kesalahan jaringan atau koneksi lambat.";
           _isLoading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        _errorMessage = "Terjadi kesalahan jaringan.";
-        _isLoading = false;
-      });
+    } finally {
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -102,12 +113,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(decoration: const BoxDecoration(gradient: wowinGradient)),
-        title: const Text('Riwayat Pesanan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      backgroundColor: WowinColors.background,
+      appBar: WowinAppBar.standard(
+        title: 'Riwayat Pesanan',
+        automaticallyImplyLeading: widget.showBackButton,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: wowinGreen))
@@ -237,22 +246,50 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 ),
                               ],
                             ),
-                            ElevatedButton(
-                              onPressed: () {
-                                // --- UBAH BAGIAN INI ---
-                                Navigator.push(context, MaterialPageRoute(
-                                    builder: (context) => OrderDetailScreen(order: order)
-                                ));
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: wowinGreen,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                minimumSize: const Size(0, 36),
-                              ),
-                              child: const Text('Detail', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                            )
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (['selesai', 'completed', 'lunas', 'dikirim'].contains((order['status'] ?? '').toString().toLowerCase())) ...[
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final refreshed = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ReviewOrderScreen(order: order),
+                                        ),
+                                      );
+                                      if (refreshed == true) {
+                                        _fetchOrderHistory();
+                                      }
+                                    },
+                                    icon: const Icon(Icons.star_rounded, size: 15, color: Color(0xFFFFA000)),
+                                    label: const Text('Nilai', style: TextStyle(color: Color(0xFFFFA000), fontWeight: FontWeight.bold, fontSize: 11.5)),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: Color(0xFFFFCA28)),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      minimumSize: const Size(0, 36),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(context, MaterialPageRoute(
+                                        builder: (context) => OrderDetailScreen(order: order)
+                                    ));
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: wowinGreen,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    minimumSize: const Size(0, 36),
+                                  ),
+                                  child: const Text('Detail', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ],

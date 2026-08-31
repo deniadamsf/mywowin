@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/wowin_theme.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
@@ -18,13 +19,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isObscure = true;
   bool _rememberMe = false;
 
-  // --- WARNA TEMA BARU ---
-  static const Color wowinGreen = Color(0xFF1B5E20);
-  static const wowinGradient = LinearGradient(
-    colors: [Color(0xFF0A4A1A), Color(0xFF2E7D32)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static const Color wowinGreen = WowinColors.primary;
 
   @override
   void dispose() {
@@ -102,13 +97,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50, // Latar abu-abu terang
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(decoration: const BoxDecoration(gradient: wowinGradient)),
-        title: const Text('Masuk ke Akun', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
+      backgroundColor: WowinColors.background,
+      appBar: WowinAppBar.standard(title: 'Masuk ke Akun'),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -116,22 +106,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // --- HEADER MELENGKUNG ---
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
                 decoration: const BoxDecoration(
-                  gradient: wowinGradient,
-                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+                  gradient: WowinGradients.royalEmerald,
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Selamat Datang Kembali!',
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: -0.3),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       'Silakan masuk untuk melanjutkan belanja produk Wowin Food pilihan Anda.',
-                      style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.9), height: 1.5),
+                      style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.9), height: 1.4),
                     ),
                   ],
                 ),

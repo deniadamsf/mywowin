@@ -1,0 +1,41 @@
+name: 🚀 Auto Deploy to Hostinger
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'public_html (web fronted + backend)/**'
+
+jobs:
+  web-deploy:
+    name: 🎉 Sync Code to Hostinger
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 📂 Sync files via FTPS / FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: /public_html/
+          local-dir: ./public_html (web fronted + backend)/
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.env
+            **/.env.*
+            **/storage/logs/**
+            **/storage/framework/sessions/**
+            **/storage/framework/cache/**
+            **/storage/app/public/**
+            **/tests/**
+            **/*.sql
+            **/node_modules/**

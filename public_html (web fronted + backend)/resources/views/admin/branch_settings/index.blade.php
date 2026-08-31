@@ -69,9 +69,19 @@
                         <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center">
                             <i class="fas fa-map-marker-alt text-[#16782d] mr-2"></i> Alamat Lengkap PT
                         </label>
-                        <textarea name="alamat" rows="4" 
+                        <textarea name="alamat" rows="3" 
                             class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-[#16782d] focus:border-[#16782d] transition shadow-sm"
                             placeholder="Alamat lengkap yang akan muncul di header nota..." required>{{ $setting->alamat ?? '' }}</textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center">
+                            <i class="fab fa-google text-red-500 mr-2"></i> Link Ulasan Google Maps Cabang
+                        </label>
+                        <input type="url" name="google_maps_review_url" value="{{ $setting->google_maps_review_url ?? '' }}" 
+                            class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-[#16782d] focus:border-[#16782d] transition shadow-sm"
+                            placeholder="Contoh: https://g.page/r/XXXXX/review">
+                        <p class="text-xs text-gray-500 mt-1">Tautan ini akan terbuka otomatis saat pembeli memberi rating bintang 4-5 di aplikasi/web.</p>
                     </div>
                 </div>
 

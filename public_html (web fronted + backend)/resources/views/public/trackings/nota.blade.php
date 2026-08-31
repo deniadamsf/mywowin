@@ -96,6 +96,13 @@
         </div>
         @endif
 
+        @if(($order->potongan_poin ?? 0) > 0)
+        <div class="flex justify-between text-amber-800 text-xs py-1 border-t border-dashed border-gray-200">
+            <span>Potongan Poin ({{ number_format($order->points_used ?? 0) }} Poin)</span>
+            <span class="font-medium">- Rp {{ number_format($order->potongan_poin, 0, ',', '.') }}</span>
+        </div>
+        @endif
+
         {{-- SECTION POTONGAN RETUR --}}
     {{-- Hanya muncul jika status bukan pending ATAU jika total potongan sudah diisi oleh admin --}}
     @if($order->total_potongan_retur > 0)

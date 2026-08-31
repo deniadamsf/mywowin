@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/constants/api_constants.dart';
+import '../../../core/theme/wowin_theme.dart';
 import 'package:image_cropper/image_cropper.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -16,12 +17,7 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  static const Color primaryGreen = Color(0xFF0A4A1A);
-  static const wowinGradient = LinearGradient(
-    colors: [Color(0xFF0A4A1A), Color(0xFF1B5E20)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static const Color primaryGreen = WowinColors.primaryDark;
 
   bool _isLoading = false;
   File? _imageFile;
@@ -162,18 +158,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Tentukan gambar yang tampil (Gambar baru dari Galeri atau Gambar lama dari Server)
     final fotoLama = widget.userData['foto_profile'];
-    final urlFotoLama = fotoLama != null ? 'https://mywowin.com/storage/$fotoLama' : 'https://via.placeholder.com/150';
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(decoration: const BoxDecoration(gradient: wowinGradient)),
-        title: const Text('Edit Profil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
+      appBar: WowinAppBar.standard(title: 'Edit Profil'),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -187,14 +176,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       width: 120, height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        color: WowinColors.primaryLight.withValues(alpha: 0.1),
                         border: Border.all(color: Colors.grey.shade200, width: 4),
-                        image: DecorationImage(
-                          fit: BoxFit.cover,
-                          image: _imageFile != null
-                              ? FileImage(_imageFile!) as ImageProvider
-                              : NetworkImage(urlFotoLama),
-                        ),
+                        image: _imageFile != null
+                            ? DecorationImage(fit: BoxFit.cover, image: FileImage(_imageFile!))
+                            : (fotoLama != null && fotoLama.toString().isNotEmpty
+                                ? DecorationImage(fit: BoxFit.cover, image: NetworkImage('https://mywowin.com/storage/$fotoLama'))
+                                : null),
                       ),
+                      child: (_imageFile == null && (fotoLama == null || fotoLama.toString().isEmpty))
+                          ? const Center(child: Icon(Icons.person, size: 60, color: WowinColors.primaryDark))
+                          : null,
                     ),
                     Positioned(
                       bottom: 0, right: 0,

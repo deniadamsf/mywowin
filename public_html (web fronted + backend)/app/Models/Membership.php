@@ -22,6 +22,7 @@ class Membership extends Model
         'nama_sales',
         'level_membership',
         'last_upgrade',
+        'status_acc',
     ];
 
     

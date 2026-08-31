@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async'; // <-- TAMBAHAN WAJIB UNTUK TIMER
 import '../../../core/constants/api_constants.dart';
+import '../../../core/theme/wowin_theme.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -28,12 +29,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   int _resendTimer = 60;
   bool _canResend = false;
 
-  static const Color wowinGreen = Color(0xFF1B5E20);
-  static const wowinGradient = LinearGradient(
-    colors: [Color(0xFF0A4A1A), Color(0xFF2E7D32)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static const Color wowinGreen = WowinColors.primary;
 
   @override
   void dispose() {
@@ -190,31 +186,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(decoration: const BoxDecoration(gradient: wowinGradient)),
-        title: const Text('Lupa Password', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
+      backgroundColor: WowinColors.background,
+      appBar: WowinAppBar.standard(title: 'Lupa Password'),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
-                decoration: const BoxDecoration(gradient: wowinGradient, borderRadius: BorderRadius.vertical(bottom: Radius.circular(32))),
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
+                decoration: const BoxDecoration(
+                  gradient: WowinGradients.royalEmerald,
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Atur Ulang Password', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
-                    const SizedBox(height: 8),
+                    const Text(
+                      'Atur Ulang Password',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: -0.3),
+                    ),
+                    const SizedBox(height: 6),
                     Text(
                       _isOtpSent
                           ? 'Kode OTP telah dikirim. Masukkan kode tersebut beserta password baru Anda di bawah ini.'
                           : 'Masukkan Email terdaftar Anda. Kami akan mengirimkan 6-digit kode OTP untuk mereset password.',
-                      style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.9), height: 1.5),
+                      style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.9), height: 1.4),
                     ),
                   ],
                 ),

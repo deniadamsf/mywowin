@@ -31,6 +31,7 @@ class User extends Authenticatable
         'login_streak',
         'total_points',
         'points_today',
+        'last_daily_claim_at',
         'admin_id',
         'fcm_token',
     ];
@@ -43,6 +44,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'otp',
     ];
 
     /**
@@ -56,6 +58,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'last_login_at' => 'datetime',
+            'last_daily_claim_at' => 'datetime',
         ];
     }
 

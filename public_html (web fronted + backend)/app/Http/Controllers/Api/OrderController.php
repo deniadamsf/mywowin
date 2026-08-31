@@ -15,16 +15,17 @@ class OrderController extends Controller
 {
     public function checkout(Request $request)
     {
-        // Flutter hanya perlu mengirim 2 data ini
+        // Flutter mengirim metode_pembayaran, catatan, dan opsional use_points
         $request->validate([
             'metode_pembayaran' => 'required|in:wa,cod,transfer',
             'catatan' => 'nullable|string',
+            'use_points' => 'nullable|boolean',
         ]);
     
         $user = Auth::user();
         $membership = $user->membership;
         
-        // Ambil isi keranjang user (sama persis dengan logika web Anda)
+        // Ambil isi keranjang user
         $cartItems = Cart::with(['product', 'bundling.products'])
             ->where('user_id', $user->id)
             ->get();
@@ -43,9 +44,21 @@ class OrderController extends Controller
             return 0;
         });
 
-        // Hitung Diskon
+        // Hitung Diskon Membership
         $discountData = $this->getDiscountData($membership, $cartItems, $subtotal);
-        $total = $discountData['finalTotal'];
+        $totalAfterDiscount = $discountData['finalTotal'];
+
+        // Hitung Potongan Poin Loyalitas (1 Poin = Rp 1)
+        $pointsUsed = 0;
+        $potonganPoin = 0;
+        if ($request->boolean('use_points') && ($user->total_points ?? 0) > 0) {
+            $pointsUsed = min((int)$user->total_points, (int)floor($totalAfterDiscount));
+            $potonganPoin = (float)$pointsUsed;
+            $total = max(0, $totalAfterDiscount - $potonganPoin);
+            $user->decrement('total_points', $pointsUsed);
+        } else {
+            $total = $totalAfterDiscount;
+        }
 
         // Buat Invoice & Simpan Order
         $invoiceNumber = 'INV-' . strtoupper(uniqid());
@@ -54,6 +67,8 @@ class OrderController extends Controller
             'user_id' => $user->id,
             'invoice_number' => $invoiceNumber,
             'total' => $total,
+            'points_used' => $pointsUsed,
+            'potongan_poin' => $potonganPoin,
             'status' => 'pending',
             'payment_method' => $request->metode_pembayaran,
             'payment_status' => 'pending',
@@ -85,12 +100,15 @@ class OrderController extends Controller
 
         // Hapus Keranjang
         $user->cart()->delete();
+
+        $order->load(['orderItems.product.images', 'orderItems.bundling']);
     
         // Balasan JSON ke Flutter
         return response()->json([
             'status' => 'success',
             'message' => 'Pesanan berhasil dibuat!',
-            'order_id' => $order->id
+            'order_id' => $order->id,
+            'data' => $order,
         ], 200);
     }
     

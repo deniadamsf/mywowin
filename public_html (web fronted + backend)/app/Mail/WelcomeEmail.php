@@ -16,7 +16,7 @@ class WelcomeEmail extends Mailable
     public $otp;
 
     // 2. Tangkap data dari controller saat email dibuat
-    public function __construct($user, $otp)
+    public function __construct($user, $otp = null)
     {
         $this->user = $user;
         $this->otp = $otp;

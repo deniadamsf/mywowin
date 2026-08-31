@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="wowin_green">#1B5E20</color>
+    <color name="wowin_dark_green">#0A4A1A</color>
+	<color name="ic_launcher_background">#ffffff</color>
+</resources>

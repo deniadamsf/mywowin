@@ -10,6 +10,8 @@ use Illuminate\Support\Carbon;
 use App\Models\User;
 use App\Models\Membership;
 use App\Mail\WelcomeEmail;
+use App\Mail\ResetPasswordEmail;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -44,10 +46,10 @@ class AuthController extends Controller
             'status_aktif' => 'tidak aktif',
             'foto_profile' => $fotoProfilePath,
             'kantor_cabang' => $validated["kantor_cabang"],
-            'last_login_at' => now(),
+            'last_login_at' => Carbon::now('Asia/Jakarta'),
             'login_streak' => 1,
-            'total_points' => 1000,
-            'points_today' => 1000,
+            'total_points' => 100,
+            'points_today' => 100,
         ]);
 
         Membership::create([
@@ -64,12 +66,16 @@ class AuthController extends Controller
         $user->save();
         // -----------------------------------------------
 
-        // Masukkan $kodeOtp ke dalam WelcomeEmail agar tidak crash
-        Mail::to($user->email)->send(new WelcomeEmail($user, $kodeOtp));
+        // Kirim WelcomeEmail berisi OTP
+        try {
+            Mail::to($user->email)->send(new WelcomeEmail($user, $kodeOtp));
+        } catch (\Throwable $e) {
+            Log::error('Gagal mengirim WelcomeEmail ke ' . $user->email . ': ' . $e->getMessage());
+        }
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Akun berhasil dibuat. Menunggu aktivasi admin.',
+            'message' => 'Akun berhasil dibuat. Silakan verifikasi email Anda.',
             'data' => $user
         ], 201);
     }
@@ -119,17 +125,17 @@ class AuthController extends Controller
         }
         // --------------------------------------------------
 
-        $now = Carbon::now();
+        $now = Carbon::now('Asia/Jakarta');
         $lastLogin = $user->last_login_at;
         $message = 'Login berhasil';
 
         if (!$lastLogin) {
             $user->login_streak = 1;
-            $user->points_today = 1000;
-            $user->total_points = 1000;
-            $message = 'Selamat! Anda mendapatkan 1000 poin tambahan hari ini.';
+            $user->points_today = 100;
+            $user->total_points = 100;
+            $message = 'Selamat! Anda mendapatkan 100 poin tambahan hari ini.';
         } else {
-            $lastLoginDate = Carbon::parse($lastLogin)->startOfDay();
+            $lastLoginDate = Carbon::parse($lastLogin)->setTimezone('Asia/Jakarta')->startOfDay();
             $today = $now->copy()->startOfDay();
             $diffInDays = $lastLoginDate->diffInDays($today);
 
@@ -141,13 +147,13 @@ class AuthController extends Controller
 
             $pointsToday = $this->calculatePoints($user->login_streak);
 
-            if (Carbon::parse($lastLogin)->toDateString() !== $now->toDateString()) {
+            if (Carbon::parse($lastLogin)->setTimezone('Asia/Jakarta')->toDateString() !== $now->toDateString()) {
                 $user->total_points += $pointsToday;
                 $user->points_today = $pointsToday;
                 $message = "Selamat! Anda mendapatkan {$user->points_today} poin hari ini.";
             }
 
-            if ($user->login_streak == 30 && Carbon::parse($lastLogin)->toDateString() !== $now->toDateString()) {
+            if ($user->login_streak == 30 && Carbon::parse($lastLogin)->setTimezone('Asia/Jakarta')->toDateString() !== $now->toDateString()) {
                 $message = "Hebat! Login 30 hari berturut-turut! Anda dapat {$user->points_today} poin!";
             }
         }
@@ -204,6 +210,53 @@ class AuthController extends Controller
         ], 200);
     }
 
+    // Fungsi untuk Mengirim Ulang Kode OTP Pendaftaran
+    public function resendRegistrationOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required'
+        ]);
+
+        $user = User::where('email', $request->email)
+                    ->orWhere('username', $request->email)
+                    ->first();
+
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data pengguna dengan email/username tersebut tidak ditemukan.'
+            ], 404);
+        }
+
+        if (!is_null($user->email_verified_at) && $user->status_aktif === 'aktif') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akun Anda sudah diverifikasi dan aktif. Silakan langsung login.'
+            ], 400);
+        }
+
+        // Generate OTP baru 6-digit
+        $kodeOtp = rand(100000, 999999);
+        $user->otp = $kodeOtp;
+        $user->save();
+
+        // Kirim WelcomeEmail berisi kode OTP baru
+        try {
+            Mail::to($user->email)->send(new WelcomeEmail($user, $kodeOtp));
+        } catch (\Throwable $e) {
+            Log::error('Gagal mengirim ulang OTP pendaftaran ke ' . $user->email . ': ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengirim email OTP. Silakan periksa koneksi server atau coba lagi nanti.'
+            ], 500);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Kode OTP verifikasi baru telah dikirim ke email Anda.'
+        ], 200);
+    }
+
     // 1. Fungsi untuk Meminta OTP Reset Password
     public function requestResetOtp(Request $request)
     {
@@ -222,9 +275,16 @@ class AuthController extends Controller
         $user->otp = $kodeOtp;
         $user->save();
 
-        // Kirim email (Sementara kita pinjam template WelcomeEmail agar cepat, 
-        // Anda bisa membuat ResetPasswordEmail terpisah nanti)
-        Mail::to($user->email)->send(new \App\Mail\WelcomeEmail($user, $kodeOtp));
+        // Kirim email khusus reset password
+        try {
+            Mail::to($user->email)->send(new ResetPasswordEmail($user, $kodeOtp));
+        } catch (\Throwable $e) {
+            Log::error('Gagal mengirim ResetPasswordEmail ke ' . $user->email . ': ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengirim email OTP. Silakan periksa konfigurasi mail server atau coba lagi nanti.'
+            ], 500);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -276,9 +336,9 @@ class AuthController extends Controller
 
     private function calculatePoints($streak)
     {
-        if ($streak == 1) return 1000;
-        if ($streak >= 2 && $streak <= 30) return 1000 + ($streak - 1) * 1000;
-        return 30000;
+        if ($streak == 1) return 100;
+        if ($streak >= 2 && $streak <= 30) return 100 + ($streak - 1) * 100;
+        return 3000;
     }
     
     // Fungsi untuk menarik data profil & progres membership secara real-time
@@ -304,7 +364,7 @@ class AuthController extends Controller
             ->sum('total');
 
         // 3. Ambil level saat ini
-        $currentLevelKey = strtolower($user->membership->level_membership ?? 'bronze');
+        $currentLevelKey = strtolower($user->membership?->level_membership ?? 'bronze');
         $currentTier = $tiers[$currentLevelKey] ?? $tiers['bronze'];
 
         // 4. Cari tahu level berikutnya
@@ -343,6 +403,21 @@ class AuthController extends Controller
 
         // Suntikkan data progres ke respons JSON
         $user->progress = $progressData;
+
+        // Cek status klaim harian untuk hari ini (WIB)
+        $now = Carbon::now('Asia/Jakarta');
+        $today = $now->toDateString();
+        $hasClaimedToday = false;
+
+        if ($user->last_daily_claim_at && Carbon::parse($user->last_daily_claim_at)->setTimezone('Asia/Jakarta')->toDateString() === $today) {
+            $hasClaimedToday = true;
+        } else {
+            $cacheKey = 'claimed_daily_reward_' . $user->id . '_' . $today;
+            if (cache()->has($cacheKey)) {
+                $hasClaimedToday = true;
+            }
+        }
+        $user->has_claimed_daily_today = $hasClaimedToday;
 
         return response()->json([
             'status' => 'success',
@@ -398,24 +473,46 @@ class AuthController extends Controller
         ], 200);
     }
     
-    // --- FUNGSI BARU UNTUK MEMPROSES KLAIM POIN HARIAN DARI FLUTTER ---
+    // --- FUNGSI BARU UNTUK MEMPROSES KLAIM POIN HARIAN DARI FLUTTER (ANTI-EXPLOIT) ---
     public function claimDailyReward(Request $request)
     {
         $user = $request->user();
-        
-        // Tambahkan nominal poin yang didapat (misal: 100 poin)
-        $user->points_today = ($user->points_today ?? 0) + 1000; 
-        
-        // Karena di database Anda ada total_points, kita tambahkan juga ke sana
-        $user->total_points = ($user->total_points ?? 0) + 1000;
-        
-        // Simpan perubahan ke database
+        $now = Carbon::now('Asia/Jakarta');
+        $today = $now->toDateString();
+
+        // 1. Cek apakah user sudah mengklaim reward hari ini (cek database & cache)
+        $alreadyClaimed = false;
+        if ($user->last_daily_claim_at && Carbon::parse($user->last_daily_claim_at)->setTimezone('Asia/Jakarta')->toDateString() === $today) {
+            $alreadyClaimed = true;
+        }
+
+        $cacheKey = 'claimed_daily_reward_' . $user->id . '_' . $today;
+        if (cache()->has($cacheKey)) {
+            $alreadyClaimed = true;
+        }
+
+        if ($alreadyClaimed) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda sudah mengklaim reward harian hari ini. Silakan kembali besok setelah jam 12 malam!',
+                'new_points' => $user->total_points ?? $user->points_today
+            ], 400);
+        }
+
+        // 2. Tambahkan poin reward (100 poin)
+        $rewardPoints = 100;
+        $user->points_today = $rewardPoints;
+        $user->total_points = ($user->total_points ?? 0) + $rewardPoints;
+        $user->last_daily_claim_at = $now;
         $user->save();
+
+        // 3. Tandai sudah klaim untuk hari ini (kedaluwarsa pukul 23:59:59 WIB)
+        cache()->put($cacheKey, true, $now->copy()->endOfDay());
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Reward berhasil diklaim!',
-            'new_points' => $user->points_today
+            'message' => 'Selamat! Reward harian 100 poin berhasil diklaim.',
+            'new_points' => $user->total_points
         ], 200);
     }
     /**

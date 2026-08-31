@@ -167,23 +167,33 @@ class OrderController extends Controller
 
         }
     
-        // Buat nomor pesanan
+        // Buat nomor pesanan dan hitung diskon
         $discountData = $this->getDiscountData($membership, $cartItems, $subtotal);
-        $total = $discountData['finalTotal'];
+        $totalAfterDiscount = $discountData['finalTotal'];
+
+        // Hitung potongan poin loyalitas (1 Poin = Rp 1)
+        $pointsUsed = 0;
+        $potonganPoin = 0;
+        if ($request->has('use_points') && ($user->total_points ?? 0) > 0) {
+            $pointsUsed = min((int)$user->total_points, (int)floor($totalAfterDiscount));
+            $potonganPoin = (float)$pointsUsed;
+            $total = max(0, $totalAfterDiscount - $potonganPoin);
+            $user->decrement('total_points', $pointsUsed);
+        } else {
+            $total = $totalAfterDiscount;
+        }
 
         $invoiceNumber = 'INV-' . strtoupper(uniqid());
-        
-    
-        // Tentukan status berdasarkan metode pembayaran
         $paymentMethod = $request->input('metode_pembayaran');
-        $status = 'pending'; // semua order pending
+        $status = 'pending';
     
         // Simpan ke tabel orders
-       $order = Order::create([
+        $order = Order::create([
             'user_id' => $user->id,
-            'admin_id' => $user->admin_id, // <--- TAMBAHKAN INI: Agar pesanan tahu Admin mana yang memegang PT-nya
             'invoice_number' => $invoiceNumber,
             'total' => $total,
+            'points_used' => $pointsUsed,
+            'potongan_poin' => $potonganPoin,
             'status' => 'pending',
             'bukti_transfer' => null,
             'payment_method' => $paymentMethod,

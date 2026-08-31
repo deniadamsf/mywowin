@@ -59,11 +59,10 @@ class RegisterController extends Controller
             'status_aktif' => 'tidak aktif',
             'foto_profile' => $fotoProfilePath,
             'kantor_cabang' => $validated["kantor_cabang"],
-            'last_login_at' => now(),  // Set last login time saat registrasi
+            'last_login_at' => Carbon::now('Asia/Jakarta'),  // Set last login time saat registrasi
             'login_streak' => 1,       // Set streak login pertama
-            'total_points' => 1000,     // Set poin hari pertama
-            'points_today' => 1000,     // Set poin hari pertama
-            // kok kembai ke situ
+            'total_points' => 100,     // Set poin hari pertama
+            'points_today' => 100,     // Set poin hari pertama
         ]);
 
 
@@ -76,12 +75,14 @@ class RegisterController extends Controller
                 'nama_sales' => $validated["nama_sales"],
             ]);
 
-             // Kirim email notifikasi
-        Mail::to($user->email)->send(new WelcomeEmail($user));
+        // Kirim email notifikasi
+        try {
+            Mail::to($user->email)->send(new WelcomeEmail($user));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Gagal mengirim WelcomeEmail pendaftaran web ke ' . $user->email . ': ' . $e->getMessage());
+        }
 
-        // Auth::login($user);
-
-        return redirect()->route('login')->with('success', 'Akun berhasil dibuat! Cek email untuk informasi lebih lanjut.');; // Arahkan ke halaman utama
+        return redirect()->route('login')->with('success', 'Akun berhasil dibuat! Silakan cek email Anda untuk informasi lebih lanjut.');
     } // mana emailnya
 
      // Menampilkan form login
@@ -110,18 +111,18 @@ class RegisterController extends Controller
                 ]);
             }
              $role = $user->role;
-             $now = Carbon::now();
+             $now = Carbon::now('Asia/Jakarta');
      
              $lastLogin = $user->last_login_at;
      
              // Jika ini login pertama, set poin hari pertama
              if (!$lastLogin) {
                  $user->login_streak = 1;
-                 $user->points_today = 1000;  // Poin untuk login pertama
-                 $user->total_points = 1000;  // Poin total pada hari pertama
-                 session()->flash('success', "🎉 Selamat! Anda mendapatkan 1000 poin tambahan hari ini.");
+                 $user->points_today = 100;  // Poin untuk login pertama
+                 $user->total_points = 100;  // Poin total pada hari pertama
+                 session()->flash('success', "🎉 Selamat! Anda mendapatkan 100 poin tambahan hari ini.");
              } else {
-                 $lastLoginDate = Carbon::parse($lastLogin)->startOfDay();
+                 $lastLoginDate = Carbon::parse($lastLogin)->setTimezone('Asia/Jakarta')->startOfDay();
                  $today = $now->copy()->startOfDay();
                  $diffInDays = $lastLoginDate->diffInDays($today);
      
@@ -134,7 +135,7 @@ class RegisterController extends Controller
                  // Hitung poin berdasarkan streak login
                  $pointsToday = $this->calculatePoints($user->login_streak);
      
-                 if ($lastLogin && Carbon::parse($lastLogin)->toDateString() !== $now->toDateString()) {
+                 if ($lastLogin && Carbon::parse($lastLogin)->setTimezone('Asia/Jakarta')->toDateString() !== $now->toDateString()) {
                      $user->total_points += $pointsToday;
                      $user->points_today = $pointsToday;
                      session()->flash('success', "🎉 Selamat! Anda mendapatkan {$user->points_today} poin hari ini.");
@@ -174,16 +175,16 @@ class RegisterController extends Controller
      {
          // Poin untuk login pertama
          if ($streak == 1) {
-             return 1000; // Poin untuk hari pertama
+             return 100; // Poin untuk hari pertama
          }
  
          // Poin untuk login kedua hingga ke-30
          if ($streak >= 2 && $streak <= 30) {
-             return 1000 + ($streak - 1) * 1000; // Setiap hari bertambah 100 poin
+             return 100 + ($streak - 1) * 100; // Setiap hari bertambah 100 poin
          }
  
          // Poin maksimal setelah hari ke-30
-         return 30000; // Poin maksimal pada hari ke-30 dan seterusnya
+         return 3000; // Poin maksimal pada hari ke-30 dan seterusnya
      }
 
      

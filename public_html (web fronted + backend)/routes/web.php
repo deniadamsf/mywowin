@@ -30,6 +30,7 @@ use App\Http\Controllers\Public\KomentarController;
 use App\Http\Controllers\Public\PublicArtikelController;
 use App\Http\Controllers\Public\CityController;
 use App\Http\Controllers\Public\ClaimedRewardController;
+use App\Http\Controllers\Public\AccountDeletionController;
 // use App\Http\Controllers\Public\PublicArtikelController;
 use App\Http\Controllers\Superadmin\SuperUsersController;
 use App\Http\Controllers\Superadmin\SuperBranchSettingController;
@@ -69,6 +70,8 @@ Route::get('/faq', [FaqController::class, 'index'])->name('faq');
 Route::get('/faq/member', [FaqController::class, 'member'])->name('faq-member');
 Route::get('/faq/syarat', [FaqController::class, 'syarat'])->name('faq-syarat');
 Route::get('/faq/policy', [FaqController::class, 'policy'])->name('faq-policy');
+Route::get('/privacy-policy', [FaqController::class, 'policy'])->name('privacy.policy');
+Route::get('/kebijakan-privasi', [FaqController::class, 'policy'])->name('kebijakan.privasi');
 Route::get('/howtobuy', [FaqController::class, 'howtobuy'])->name('howtobuy');
 Route::get('/shipping', [FaqController::class, 'shipping'])->name('shipping');
 Route::get('/freong', [FaqController::class, 'freong'])->name('freong');
@@ -77,8 +80,13 @@ Route::get('/transaction', [FaqController::class, 'transaction'])->name('transac
 Route::get('/refund', [FaqController::class, 'refund'])->name('refund');
 Route::get('/faq/about', [FaqController::class, 'about'])->name('about');
 
+// Rute Pengajuan Penghapusan Akun & Kebijakan Data (Google Play Compliance)
+Route::get('/delete-account', [AccountDeletionController::class, 'show'])->name('account.delete.request');
+Route::post('/delete-account', [AccountDeletionController::class, 'submit'])->name('account.delete.submit');
+
 Route::get('/reset-password', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset.manual');
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update.manual');
+Route::post('/reset-password/send-otp', [ForgotPasswordController::class, 'sendResetOtp'])->name('password.send.otp')->middleware('throttle:5,1');
 
 // Home Page
 Route::get('/artikels', [PublicArtikelController::class, 'index'])->name('artikels');
@@ -113,11 +121,14 @@ Route::get('/contacts', function () {
 })->name('contacts');
 Route::post('/contacts', [KomentarController::class, 'store'])->name('contacts.store');
 
-Route::get('/cities', [CityController::class, 'index']); // Get semua kota
-Route::post('/cities', [CityController::class, 'store']); // Tambah kota baru
-Route::get('/cities/{id}', [CityController::class, 'show']); // Get detail kota
-Route::put('/cities/{id}', [CityController::class, 'update']); // Update kota
-Route::delete('/cities/{id}', [CityController::class, 'destroy']); // Hapus kota
+Route::get('/cities', [CityController::class, 'index']); // Get semua kota (Publik untuk dropdown)
+Route::get('/cities/{id}', [CityController::class, 'show']); // Get detail kota (Publik)
+
+Route::middleware(['auth', 'is_admin'])->group(function () {
+    Route::post('/cities', [CityController::class, 'store']); // Tambah kota baru (Admin only)
+    Route::put('/cities/{id}', [CityController::class, 'update']); // Update kota (Admin only)
+    Route::delete('/cities/{id}', [CityController::class, 'destroy']); // Hapus kota (Admin only)
+});
 
 Route::get('/orders', [OrderController::class, 'index'])->name('public.orders.index');
 Route::post('/orders', [OrderController::class, 'store'])->name('public.orders.store');
@@ -252,6 +263,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'is_admin'])->group(
 
     Route::resource('bundlings', BundlingController::class);
 
+    // Kelola Ulasan Cabang
+    Route::get('/reviews', [\App\Http\Controllers\Admin\AdminReviewController::class, 'index'])->name('reviews.index');
+    Route::post('/reviews/{id}/reply', [\App\Http\Controllers\Admin\AdminReviewController::class, 'reply'])->name('reviews.reply');
 });
 
 
@@ -314,6 +328,11 @@ Route::delete('/superadmin/artikels/{artikel}/hapus-foto', [SuperArtikelControll
     
     // --- TAMBAHAN BARU: RUTE UNTUK ACC MEMBER ---
     Route::post('/users/{id}/acc', [SuperUsersController::class, 'accMember'])->name('users.acc');
+
+    // Kelola Ulasan Seluruh Cabang (Super Admin)
+    Route::get('/reviews', [\App\Http\Controllers\Superadmin\SuperReviewController::class, 'index'])->name('reviews.index');
+    Route::post('/reviews/{id}/reply', [\App\Http\Controllers\Superadmin\SuperReviewController::class, 'reply'])->name('reviews.reply');
+    Route::patch('/reviews/{id}/toggle-visibility', [\App\Http\Controllers\Superadmin\SuperReviewController::class, 'toggleVisibility'])->name('reviews.toggle-visibility');
 });
 
 // =========================================================================

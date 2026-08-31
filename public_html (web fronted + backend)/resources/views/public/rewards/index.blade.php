@@ -30,10 +30,10 @@
                         <div class="inline-block p-3 rounded-full bg-white bg-opacity-20 mb-3">
                             <i class="fas fa-coins text-3xl text-yellow-300"></i>
                         </div>
-                        <h2 class="text-lg font-bold text-white mb-1">Poin Anda</h2>
-                        <p class="text-4xl font-bold text-white mb-2">{{ number_format(Auth::user()->points_today ?? 0) }}</p>
+                        <h2 class="text-lg font-bold text-white mb-1">Total Poin Anda</h2>
+                        <p class="text-4xl font-bold text-white mb-2">{{ number_format(Auth::user()->total_points ?? Auth::user()->points_today ?? 0) }}</p>
                         <div class="h-2 bg-white bg-opacity-20 rounded-full mt-3 mb-2">
-                            <div class="h-2 bg-yellow-400 rounded-full" style="width: {{ min(100, (Auth::user()->points_today ?? 0) / 10) }}%"></div>
+                            <div class="h-2 bg-yellow-400 rounded-full" style="width: {{ min(100, ((Auth::user()->total_points ?? Auth::user()->points_today ?? 0) / 1000) * 100) }}%"></div>
                         </div>
                         <p class="text-xs text-gray-100">Kumpulkan lebih banyak poin untuk rewards eksklusif</p>
                     </div>
@@ -116,7 +116,7 @@
                         <i class="fas fa-coins text-yellow-500 mr-1"></i>
                         {{ number_format($reward->points_required) }}
                     </div>
-                    @if(Auth::check() && Auth::user()->points_today >= $reward->points_required)
+                    @if(Auth::check() && ((Auth::user()->total_points ?? Auth::user()->points_today ?? 0) >= $reward->points_required))
                         <button onclick="window.location.href='{{ route('rewards.store', ['id' => $reward->id]) }}'" 
                                 class="bg-[#16782d] text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-[#0e5420] transition w-full">
                             Klaim
@@ -126,7 +126,7 @@
                             <i class="fas fa-lock mr-1"></i> Tidak Cukup
                         </button>
                         <p class="text-xs text-gray-400 mt-1 text-center">
-                            {{ Auth::user()->points_today ?? 0 }}/{{ $reward->points_required }}
+                            {{ Auth::user()->total_points ?? Auth::user()->points_today ?? 0 }}/{{ $reward->points_required }}
                         </p>
                     @endif
                 </div>
@@ -296,7 +296,7 @@
                     <div class="flex-shrink-0 w-8 h-8 rounded-full bg-[#16782d] text-white flex items-center justify-center mr-3 font-medium">1</div>
                     <div>
                         <h4 class="font-bold text-gray-800 mb-1">Kumpulkan Poin</h4>
-                        <p class="text-sm text-gray-600">Dapatkan poin setiap kali Anda melakukan login pada website MyWowin selama <b> 30 hari berturut-turut</b>. Setiap 1000 poin setara dengan Rp 1.000.</p>
+                        <p class="text-sm text-gray-600">Dapatkan bonus 100 poin setiap hari saat membuka dan mengklaim reward harian pada website / aplikasi MyWowin. Poin direset otomatis setiap jam 12 malam.</p>
                     </div>
                 </div>
                 

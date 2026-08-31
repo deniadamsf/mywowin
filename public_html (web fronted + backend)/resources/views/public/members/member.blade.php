@@ -105,8 +105,8 @@
                                 </div>
                             </div>
                             <div class="bg-green-50 rounded-xl p-4 text-center">
-                                <div class="text-green-700 text-lg font-semibold">{{ $user->points_today ?? 0 }}</div>
-                                <div class="text-green-500 text-sm">Points Today</div>
+                                <div class="text-green-700 text-lg font-semibold">{{ $user->total_points ?? $user->points_today ?? 0 }}</div>
+                                <div class="text-green-500 text-sm">Total Points</div>
                                 <div class="mt-2 flex justify-center">
                                     <i class="bi bi-star-fill text-yellow-500"></i>
                                 </div>
@@ -529,8 +529,8 @@
                             <!-- Point Stats -->
                             <div class="mb-8">
                                 <div class="flex justify-between items-center mb-2">
-                                    <h4 class="font-medium text-gray-700">Poin Hari Ini</h4>
-                                    <span class="text-sm font-medium text-blue-600">{{ $user->points_today ?? 0 }} poin</span>
+                                    <h4 class="font-medium text-gray-700">Total Poin Aktif</h4>
+                                    <span class="text-sm font-medium text-blue-600">{{ $user->total_points ?? $user->points_today ?? 0 }} poin</span>
                                 </div>
                                 <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
                                     <div class="flex items-center">

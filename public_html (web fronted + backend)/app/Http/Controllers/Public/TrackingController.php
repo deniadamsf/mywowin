@@ -44,7 +44,16 @@ public function showNota($id)
     // 1. Ambil data order beserta item dan usernya
     $order = Order::with(['orderItems', 'user.membership'])->findOrFail($id);
     
-    // 2. Ambil BranchSetting (Logika Anda sudah benar)
+    // Validasi Otorisasi Kepemilikan (Anti-IDOR)
+    $currentUser = Auth::user();
+    if (!$currentUser) {
+        return redirect()->route('login');
+    }
+    if ($currentUser->role !== 'super_admin' && $currentUser->role !== 'admin' && $order->user_id !== $currentUser->id) {
+        abort(403, 'Akses ditolak. Anda tidak memiliki izin untuk melihat nota pesanan ini.');
+    }
+    
+    // 2. Ambil BranchSetting
     $branchSetting = BranchSetting::where('user_id', $order->user->admin_id)->first();
     if (!$branchSetting) {
         $branchSetting = BranchSetting::where('enum_value', $order->user->kantor_cabang)->first();
@@ -73,6 +82,15 @@ public function downloadReceipt($orderId)
 {
     // 1. Ambil data order lengkap
     $order = Order::with(['orderItems', 'user.membership'])->findOrFail($orderId);
+    
+    // Validasi Otorisasi Kepemilikan (Anti-IDOR)
+    $currentUser = Auth::user();
+    if (!$currentUser) {
+        return redirect()->route('login');
+    }
+    if ($currentUser->role !== 'super_admin' && $currentUser->role !== 'admin' && $order->user_id !== $currentUser->id) {
+        abort(403, 'Akses ditolak. Anda tidak memiliki izin untuk mengunduh kwitansi pesanan ini.');
+    }
     
     // 2. Cari BranchSetting untuk Logo dan Alamat PT
     $branchSetting = BranchSetting::where('user_id', $order->user->admin_id)->first();

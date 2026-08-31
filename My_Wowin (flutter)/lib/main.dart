@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'features/splash/screens/splash_screen.dart';
 // WAJIB IMPORT HALAMAN CHAT-NYA DI SINI:
 import 'features/chat/screens/live_chat_screen.dart';
+
+import 'core/theme/wowin_theme.dart';
 
 // --- 1. BUAT KUNCI MASTER NAVIGASI ---
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -83,11 +86,12 @@ class _MyAppState extends State<MyApp> {
     // --- KONDISI 3: PESAN MASUK SAAT APLIKASI SEDANG DIBUKA (FOREGROUND) ---
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.notification != null) {
+        if (!mounted) return;
         // Tampilkan Snackbar yang BISA DIKLIK tombol "Buka"-nya
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${message.notification?.title}: ${message.notification?.body}'),
-            backgroundColor: Colors.green.shade800,
+            backgroundColor: WowinColors.primary,
             duration: const Duration(seconds: 5),
             behavior: SnackBarBehavior.floating,
             action: SnackBarAction(
@@ -106,13 +110,43 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // --- 2. PASANG KUNCI MASTERNYA DI SINI ---
       navigatorKey: navigatorKey,
-      title: 'Wowin Food',
+      title: 'My Wowin',
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        final clampedTextScaler = mediaQuery.textScaler.clamp(
+          minScaleFactor: 0.85,
+          maxScaleFactor: 1.15,
+        );
+        return MediaQuery(
+          data: mediaQuery.copyWith(textScaler: clampedTextScaler),
+          child: child!,
+        );
+      },
       theme: ThemeData(
-        primarySwatch: Colors.green,
-        scaffoldBackgroundColor: Colors.grey[50],
+        useMaterial3: true,
+        textTheme: GoogleFonts.outfitTextTheme(),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: WowinColors.primary,
+          primary: WowinColors.primary,
+          surface: WowinColors.surface,
+        ),
+        scaffoldBackgroundColor: WowinColors.background,
+        appBarTheme: AppBarTheme(
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          backgroundColor: WowinColors.primaryDark,
+          foregroundColor: Colors.white,
+          centerTitle: false,
+          iconTheme: const IconThemeData(color: Colors.white, size: 20),
+          titleTextStyle: GoogleFonts.outfit(
+            color: Colors.white,
+            fontSize: 16.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+          ),
+        ),
       ),
       home: const SplashScreen(),
     );

@@ -55,7 +55,8 @@
                     <tr class="bg-gray-50 text-gray-600 text-xs uppercase font-bold">
                         <th class="px-6 py-4 text-left">Wilayah</th>
                         <th class="px-6 py-4 text-left">Admin Pengelola</th>
-                        <th class="px-6 py-4 text-left">Nama PT di Nota</th>
+                        <th class="px-6 py-4 text-left">Nama PT & Info</th>
+                        <th class="px-6 py-4 text-center">Google Maps Review</th>
                         <th class="px-6 py-4 text-center">Logo</th>
                         <th class="px-6 py-4 text-right">Update Terakhir</th>
                     </tr>
@@ -81,6 +82,15 @@
                             <td class="px-6 py-4">
                                 <div class="font-semibold">{{ $setting->nama_pt }}</div>
                                 <div class="text-xs text-gray-500 italic">{{ $setting->no_telp }}</div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                @if($setting->google_maps_review_url)
+                                    <a href="{{ $setting->google_maps_review_url }}" target="_blank" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200">
+                                        <i class="fab fa-google mr-1 text-red-500"></i> Buka Link
+                                    </a>
+                                @else
+                                    <span class="text-gray-400 text-xs italic">Belum diisi</span>
+                                @endif
                             </td>
                             <td class="px-6 py-4">
                                 <div class="flex justify-center">

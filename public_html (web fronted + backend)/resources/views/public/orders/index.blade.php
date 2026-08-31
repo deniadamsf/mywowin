@@ -180,6 +180,34 @@
                     <h2 class="text-lg font-semibold text-gray-900 mb-4">Ringkasan Pesanan</h2>
                     <form id="orderForm" action="{{ route('public.orders.store') }}" method="POST">
                         @csrf
+
+                    @php
+                        $userPoints = Auth::user()->total_points ?? 0;
+                        $initialTotal = $subtotal - $discountData['discountAmount'];
+                        $maxPointDiscount = min($userPoints, $initialTotal);
+                    @endphp
+
+                    @if($userPoints > 0)
+                    <!-- Poin Loyalitas Section -->
+                    <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                                    <i class="fas fa-coins text-sm"></i>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-bold text-amber-900 block">Poin Loyalitas</span>
+                                    <span class="text-xs text-amber-700">Tersedia: <b>{{ number_format($userPoints) }} Poin</b> (Hemat Rp {{ number_format($maxPointDiscount, 0, ',', '.') }})</span>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="use_points" value="1" id="usePointsCheckbox" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16782d]"></div>
+                            </label>
+                        </div>
+                    </div>
+                    @endif
+
                     <div class="space-y-3">
                         <div class="flex justify-between">
                             <span class="text-gray-600">Subtotal</span>
@@ -189,6 +217,10 @@
                             <span class="text-gray-600">Diskon ({{ $discountData['discountPercent'] }}%)</span>
                             <span class="text-red-600 font-medium">- Rp {{ number_format($discountData['discountAmount'], 0, ',', '.') }}</span>
                         </div>
+                        <div id="pointDiscountRow" class="hidden flex justify-between text-green-700 font-medium">
+                            <span>Potongan Poin</span>
+                            <span>- Rp <span id="pointDiscountDisplay">{{ number_format($maxPointDiscount, 0, ',', '.') }}</span></span>
+                        </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Ongkos Kirim</span>
                             <span class="text-gray-800">Rp 0</span>
@@ -196,8 +228,8 @@
                        <div class="flex justify-between font-semibold pt-3 border-t border-gray-200">
                             <span class="text-gray-800">Total Belanja</span>
                             
-                            <span class="text-gray-900">
-                                Rp {{ number_format($subtotal - $discountData['discountAmount'], 0, ',', '.') }}
+                            <span id="grandTotalDisplay" class="text-gray-900 font-bold text-lg">
+                                Rp {{ number_format($initialTotal, 0, ',', '.') }}
                             </span>
                         </div>
                     </div>
@@ -208,17 +240,17 @@
                     <h2 class="text-lg font-semibold text-white mb-3">Pilih Metode Pembayaran</h2>
 
                     <div class="space-y-3">
-                        <label class="flex items-center space-x-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
                             <input type="radio" name="metode_pembayaran" value="wa" class="form-radio text-blue-600">
                             <span class="text-white">WhatsApp (WA)</span>
                         </label>
 
-                        <label class="flex items-center space-x-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
                             <input type="radio" name="metode_pembayaran" value="cod" class="form-radio text-blue-600">
                             <span class="text-white">Cash on Delivery (COD)</span>
                         </label>
 
-                        <label class="flex items-center space-x-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
                             <input type="radio" name="metode_pembayaran" value="transfer" class="form-radio text-blue-600">
                             <span class="text-white">Transfer Bank</span>
                         </label>
@@ -235,6 +267,25 @@
                     const form = document.getElementById("orderForm");
                     const errorAlert = document.getElementById("errorAlert");
                     const radios = document.querySelectorAll('input[name="metode_pembayaran"]');
+                    const usePointsCheckbox = document.getElementById("usePointsCheckbox");
+                    const pointDiscountRow = document.getElementById("pointDiscountRow");
+                    const grandTotalDisplay = document.getElementById("grandTotalDisplay");
+
+                    const initialTotal = {{ $initialTotal }};
+                    const pointDiscount = {{ $maxPointDiscount }};
+
+                    if (usePointsCheckbox) {
+                        usePointsCheckbox.addEventListener("change", function() {
+                            if (this.checked) {
+                                pointDiscountRow.classList.remove("hidden");
+                                const newTotal = Math.max(0, initialTotal - pointDiscount);
+                                grandTotalDisplay.innerText = "Rp " + new Intl.NumberFormat('id-ID').format(newTotal);
+                            } else {
+                                pointDiscountRow.classList.add("hidden");
+                                grandTotalDisplay.innerText = "Rp " + new Intl.NumberFormat('id-ID').format(initialTotal);
+                            }
+                        });
+                    }
 
                     // Saat submit
                     form.addEventListener("submit", function(e) {

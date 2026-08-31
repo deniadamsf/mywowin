@@ -60,4 +60,19 @@ class RewardController extends Controller
             'message' => 'Hore! Reward berhasil diklaim!'
         ], 200);
     }
+
+    // Mengambil riwayat klaim reward user
+    public function history()
+    {
+        $user = Auth::user();
+        $history = ClaimedReward::where('user_id', $user->id)
+            ->with('reward')
+            ->latest('claimed_at')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $history
+        ], 200);
+    }
 }

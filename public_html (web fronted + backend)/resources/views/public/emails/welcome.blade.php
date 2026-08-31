@@ -91,6 +91,7 @@
         <div class="body-content">
             <div class="greeting">Halo, <strong>{{ $user->nama_lengkap }}</strong>!</div>
             
+            @if(!empty($otp))
             <p>Terima kasih telah mendaftar sebagai Mitra Wowin Food. Untuk mengaktifkan akun aplikasi Anda, silakan masukkan kode verifikasi (OTP) 6-digit berikut:</p>
 
             <!-- Kotak OTP -->
@@ -103,6 +104,9 @@
             <div class="warning-text">
                 <strong>PENTING:</strong> Jangan berikan kode ini kepada siapapun. Tim Wowin Food tidak akan pernah meminta kode sandi maupun OTP Anda dengan alasan apapun.
             </div>
+            @else
+            <p>Terima kasih telah mendaftar sebagai Mitra Wowin Food. Akun Anda telah berhasil didaftarkan dan saat ini sedang menunggu persetujuan/aktivasi oleh tim administrator kami.</p>
+            @endif
 
             <p>Jika Anda tidak merasa mendaftar di aplikasi Wowin Food, silakan abaikan email ini.</p>
             

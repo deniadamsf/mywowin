@@ -109,4 +109,89 @@ class CartController extends Controller
             'message' => 'Yeay! Promo berhasil masuk keranjang!',
         ]);
     }
+
+    // 4. Memperbarui Kuantitas Item Keranjang (+ / -)
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'quantity' => 'required|integer|min:0'
+        ]);
+
+        $userId = Auth::id();
+        $cart = Cart::where('user_id', $userId)->where('id', $id)->first();
+
+        if (!$cart) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item keranjang tidak ditemukan.'
+            ], 404);
+        }
+
+        // Jika kuantitas 0, hapus dari keranjang
+        if ($request->quantity <= 0) {
+            $cart->delete();
+        } else {
+            $cart->update(['quantity' => $request->quantity]);
+        }
+
+        $carts = Cart::where('user_id', $userId)
+            ->with(['product.images', 'bundling'])
+            ->get();
+
+        $subtotal = $carts->sum(function($c) {
+            return $c->price * $c->quantity;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kuantitas keranjang berhasil diperbarui.',
+            'data' => $carts,
+            'subtotal' => $subtotal
+        ]);
+    }
+
+    // 5. Menghapus Satu Item dari Keranjang
+    public function destroy($id)
+    {
+        $userId = Auth::id();
+        $cart = Cart::where('user_id', $userId)->where('id', $id)->first();
+
+        if (!$cart) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item keranjang tidak ditemukan.'
+            ], 404);
+        }
+
+        $cart->delete();
+
+        $carts = Cart::where('user_id', $userId)
+            ->with(['product.images', 'bundling'])
+            ->get();
+
+        $subtotal = $carts->sum(function($c) {
+            return $c->price * $c->quantity;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Item berhasil dihapus dari keranjang.',
+            'data' => $carts,
+            'subtotal' => $subtotal
+        ]);
+    }
+
+    // 6. Mengosongkan Seluruh Item Keranjang
+    public function clear()
+    {
+        $userId = Auth::id();
+        Cart::where('user_id', $userId)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Keranjang berhasil dikosongkan.',
+            'data' => [],
+            'subtotal' => 0
+        ]);
+    }
 }

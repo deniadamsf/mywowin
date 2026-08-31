@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../core/constants/api_constants.dart';
 import 'package:intl/intl.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../core/theme/wowin_theme.dart';
+import '../../../core/widgets/wowin_cached_image.dart';
 
 class RewardScreen extends StatefulWidget {
   const RewardScreen({super.key});
@@ -12,10 +14,7 @@ class RewardScreen extends StatefulWidget {
   State<RewardScreen> createState() => _RewardScreenState();
 }
 
-class _RewardScreenState extends State<RewardScreen> {
-  static const Color wowinDarkGreen = Color(0xFF0B5C20);
-  static const Color wowinLightGreen = Color(0xFF16782D);
-
+class _RewardScreenState extends State<RewardScreen> with SingleTickerProviderStateMixin {
   List<dynamic> _allRewards = [];
   List<dynamic> _displayedRewards = [];
   int _userPoints = 0;
@@ -23,13 +22,26 @@ class _RewardScreenState extends State<RewardScreen> {
   String _searchQuery = '';
   String _selectedFilter = 'Semua';
 
+  late AnimationController _animController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _fetchData();
   }
 
-  // --- PERBAIKAN: MEMISAHKAN TARIKAN DATA AGAR ANTI-GAGAL ---
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
 
@@ -41,7 +53,7 @@ class _RewardScreenState extends State<RewardScreen> {
       return;
     }
 
-    // 1. Tarik Data Profil (Untuk Poin)
+    // 1. Tarik Data Profil (Saldo Poin Pengguna)
     try {
       final profileRes = await http.get(
         Uri.parse('$baseUrl/profile'),
@@ -52,17 +64,18 @@ class _RewardScreenState extends State<RewardScreen> {
         final profileData = json.decode(profileRes.body);
         if (profileData['data'] != null) {
           final data = profileData['data'];
-          setState(() {
-            // Langsung ambil total_points sebagai saldo utama untuk ditukar hadiah
-            _userPoints = int.tryParse((data['total_points'] ?? 0).toString()) ?? 0;
-          });
+          if (mounted) {
+            setState(() {
+              _userPoints = int.tryParse((data['total_points'] ?? 0).toString()) ?? 0;
+            });
+          }
         }
       }
     } catch (e) {
-      debugPrint('Gagal tarik profil: $e');
+      debugPrint('Gagal tarik profil poin: $e');
     }
 
-    // 2. Tarik Data Reward (Untuk Daftar Hadiah)
+    // 2. Tarik Data Reward (Daftar Hadiah)
     try {
       final rewardRes = await http.get(
         Uri.parse('$baseUrl/rewards?search=$_searchQuery'),
@@ -71,18 +84,20 @@ class _RewardScreenState extends State<RewardScreen> {
 
       if (rewardRes.statusCode == 200) {
         final rewardData = json.decode(rewardRes.body);
-        setState(() {
-          _allRewards = rewardData['data'] ?? [];
-          _applyFilter(_selectedFilter);
-        });
+        if (mounted) {
+          setState(() {
+            _allRewards = rewardData['data'] ?? [];
+            _applyFilter(_selectedFilter);
+          });
+        }
       }
     } catch (e) {
       debugPrint('Gagal tarik reward: $e');
     }
 
-    // Matikan loading setelah keduanya selesai dicoba
     if (mounted) {
       setState(() => _isLoading = false);
+      _animController.forward(from: 0.0);
     }
   }
 
@@ -92,18 +107,28 @@ class _RewardScreenState extends State<RewardScreen> {
       _displayedRewards = List.from(_allRewards);
 
       if (filterName == 'Poin Terendah') {
-        _displayedRewards.sort((a, b) => (int.tryParse(a['points_required'].toString()) ?? 0).compareTo(int.tryParse(b['points_required'].toString()) ?? 0));
+        _displayedRewards.sort((a, b) => (int.tryParse(a['points_required'].toString()) ?? 0)
+            .compareTo(int.tryParse(b['points_required'].toString()) ?? 0));
       } else if (filterName == 'Poin Tertinggi') {
-        _displayedRewards.sort((a, b) => (int.tryParse(b['points_required'].toString()) ?? 0).compareTo(int.tryParse(a['points_required'].toString()) ?? 0));
+        _displayedRewards.sort((a, b) => (int.tryParse(b['points_required'].toString()) ?? 0)
+            .compareTo(int.tryParse(a['points_required'].toString()) ?? 0));
       }
     });
   }
 
-  Future<void> _claimReward(int rewardId) async {
+  Future<void> _claimReward(int rewardId, String rewardName) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
-    showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator(color: wowinLightGreen)));
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => const Center(
+        child: CircularProgressIndicator(color: WowinColors.accentMint),
+      ),
+    );
 
     try {
       final response = await http.post(
@@ -112,115 +137,184 @@ class _RewardScreenState extends State<RewardScreen> {
         body: {'reward_id': rewardId.toString()},
       );
 
-      Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
       final data = json.decode(response.body);
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message']), backgroundColor: wowinLightGreen));
+        if (!mounted) return;
+        _showSuccessClaimDialog(rewardName);
         _fetchData();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Gagal klaim'), backgroundColor: Colors.red));
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Gagal klaim reward'),
+            backgroundColor: WowinColors.promoRed,
+          ),
+        );
       }
     } catch (e) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Terjadi kesalahan jaringan'), backgroundColor: Colors.red));
+      if (mounted) Navigator.pop(context);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Terjadi kesalahan jaringan.'),
+          backgroundColor: WowinColors.promoRed,
+        ),
+      );
     }
+  }
+
+  void _showSuccessClaimDialog(String rewardName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: WowinGlassCard(
+          borderRadius: 24,
+          padding: const EdgeInsets.all(24),
+          backgroundColor: Colors.white.withValues(alpha: 0.95),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: WowinGradients.goldBadge,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: WowinColors.gold.withValues(alpha: 0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: const Icon(Icons.celebration, color: Colors.white, size: 40),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Selamat! 🎉',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: WowinColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Anda berhasil mengklaim "$rewardName". Silakan hubungi admin cabang Wowin untuk pengambilan.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: WowinColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: WowinColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text(
+                    'Tutup & Selesai',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showCaraKerjaDialog() {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         insetPadding: const EdgeInsets.all(16),
         child: Container(
           width: double.infinity,
           constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.white),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(colors: [wowinDarkGreen, wowinLightGreen], begin: Alignment.centerLeft, end: Alignment.centerRight),
-                  borderRadius: BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+                  gradient: WowinGradients.royalEmerald,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                      child: const Icon(Icons.info_outline, color: Colors.white, size: 24),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      child: const Icon(Icons.stars_rounded, color: WowinColors.goldLight, size: 24),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 14),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Cara Kerja', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                          Text('Program MyWowin Rewards', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                          Text('Cara Kerja Reward', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text('Program Loyalitas Wowin Food', style: TextStyle(color: Colors.white70, fontSize: 12)),
                         ],
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white),
                       onPressed: () => Navigator.pop(ctx),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
                     )
                   ],
                 ),
               ),
-
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      _buildStep(1, 'Kumpulkan Poin', 'Dapatkan poin setiap kali Anda melakukan login pada website MyWowin selama 30 hari berturut-turut. Setiap 1000 poin setara dengan Rp 1.000.'),
-                      _buildStep(2, 'Pilih Reward', 'Pilih hadiah yang Anda inginkan dari berbagai pilihan yang tersedia. Pastikan poin Anda mencukupi serta sesuai dengan s&k yang ada.'),
-                      _buildStep(3, 'Klaim Reward', 'Klik tombol "Klaim" pada reward yang Anda inginkan. Poin akan otomatis terpotong dari total poin Anda.'),
-                      _buildStep(4, 'Nikmati Hadiah', 'Hadiah reward selama 30 hari berturut-turut akan dikirim kan melalui cabang terdekat dari cabang PT. Wowin Purnomo Putera sesuai Kantor Cabang terdekat Anda.'),
-
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.lightbulb, color: Colors.amber, size: 20),
-                                SizedBox(width: 8),
-                                Text('Tips', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _buildTip('Poin akan pada setelan awal jika Anda tidak login secara berturut-turut selama 30 hari.'),
-                            _buildTip('Dapatkan poin bonus dengan mengikuti kegiatan promosi MyWowin.'),
-                            _buildTip('Reward yang telah diklaim berlaku selama 30 hari.'),
-                          ],
-                        ),
-                      ),
+                      _buildStep(1, 'Kumpulkan Poin Harian', 'Buka katalog dan klaim bonus +100 poin harian Anda setiap hari. Poin direset otomatis setiap jam 12 malam.'),
+                      _buildStep(2, 'Pilih Hadiah Spesial', 'Pilih merchandise eksklusif atau voucher produk yang tersedia pada daftar reward.'),
+                      _buildStep(3, 'Tukar Poin Instan', 'Klik tombol "Klaim" pada hadiah yang diinginkan saat saldo poin Anda mencukupi.'),
+                      _buildStep(4, 'Pengambilan di Cabang', 'Tunjukkan bukti klaim ke kantor cabang PT Wowin Purnomo Putera terdekat Anda.'),
                     ],
                   ),
                 ),
               ),
-
-              Container(
+              Padding(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.grey[50], borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16))),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(ctx),
-                    style: ElevatedButton.styleFrom(backgroundColor: wowinLightGreen, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                    child: const Text('Mengerti', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: WowinColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Saya Mengerti', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -230,24 +324,35 @@ class _RewardScreenState extends State<RewardScreen> {
 
   Widget _buildStep(int number, String title, String desc) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 18),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 32, height: 32,
+            width: 30,
+            height: 30,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(color: wowinLightGreen, shape: BoxShape.circle),
-            child: Text('$number', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            decoration: BoxDecoration(
+              gradient: WowinGradients.goldBadge,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: WowinColors.gold.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                )
+              ],
+            ),
+            child: Text('$number', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: WowinColors.textPrimary)),
                 const SizedBox(height: 4),
-                Text(desc, style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.5)),
+                Text(desc, style: const TextStyle(fontSize: 12, color: WowinColors.textSecondary, height: 1.4)),
               ],
             ),
           )
@@ -256,290 +361,541 @@ class _RewardScreenState extends State<RewardScreen> {
     );
   }
 
-  Widget _buildTip(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(padding: EdgeInsets.only(top: 2), child: Icon(Icons.check_circle, color: wowinLightGreen, size: 16)),
-          const SizedBox(width: 8),
-          Expanded(child: Text(text, style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4))),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final formattedPoints = NumberFormat('#,##0', 'en_US').format(_userPoints);
-
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(colors: [wowinDarkGreen, wowinLightGreen], begin: Alignment.centerLeft, end: Alignment.centerRight),
-          ),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Rewards Program', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ),
+      backgroundColor: WowinColors.background,
       body: RefreshIndicator(
-        color: wowinLightGreen,
+        color: WowinColors.accentMint,
         onRefresh: _fetchData,
-        child: SingleChildScrollView(
+        child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(colors: [wowinDarkGreen, wowinLightGreen], begin: Alignment.centerLeft, end: Alignment.centerRight),
-                ),
-                padding: const EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 30),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          slivers: [
+            // --- APP BAR & HERO GLASS BANNER ---
+            SliverAppBar(
+              expandedHeight: 330,
+              pinned: true,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              backgroundColor: WowinColors.primaryDark,
+              iconTheme: const IconThemeData(color: Colors.white, size: 20),
+              title: const Text(
+                'Loyalitas Mitra',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16.5, letterSpacing: -0.2),
+              ),
+              flexibleSpace: FlexibleSpaceBar(
+                background: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    const Text('WOWINFood Rewards', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    const Text('Nikmati berbagai hadiah menarik dari usaha kuliner terbaik dengan menukarkan poin Anda.', style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white, foregroundColor: wowinLightGreen, elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          icon: const Icon(Icons.card_giftcard, size: 18), label: const Text('Lihat Rewards', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton.icon(
-                          onPressed: _showCaraKerjaDialog,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white, side: const BorderSide(color: Colors.white),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          icon: const Icon(Icons.info_outline, size: 18), label: const Text('Cara Kerja', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
+                    // Background Multi-gradient
                     Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                        borderRadius: BorderRadius.circular(16),
+                      decoration: const BoxDecoration(
+                        gradient: WowinGradients.royalEmerald,
                       ),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                            child: const Icon(Icons.monetization_on, color: Colors.yellow, size: 35),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text('Poin Anda', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                          Text(formattedPoints, style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.bold, height: 1.2)),
-                          const SizedBox(height: 12),
-                          // --- PROGRESS BAR DINAMIS (Sesuai perhitungan Web) ---
-                          Container(
-                            height: 6,
-                            width: double.infinity,
-                            alignment: Alignment.centerLeft,
-                            decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(10)
-                            ),
-                            child: FractionallySizedBox(
-                              // Logika Web: Poin 1000 = 100% (atau 1.0 di Flutter)
-                              widthFactor: (_userPoints / 1000).clamp(0.0, 1.0),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                    color: Colors.yellow,
-                                    borderRadius: BorderRadius.circular(10)
+                    ),
+
+                    // Decorative Ambient Glow Circles
+                    Positioned(
+                      top: -40,
+                      right: -30,
+                      child: Container(
+                        width: 200,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: WowinColors.accentMint.withValues(alpha: 0.15),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 20,
+                      left: -20,
+                      child: Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: WowinColors.gold.withValues(alpha: 0.12),
+                        ),
+                      ),
+                    ),
+
+                    // Content Container
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header Top Title & Action
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'WOWIN REWARDS',
+                                      style: TextStyle(
+                                        color: WowinColors.goldLight,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Loyalitas Mitra',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                InkWell(
+                                  onTap: _showCaraKerjaDialog,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.help_outline, color: Colors.white, size: 14),
+                                        SizedBox(width: 4),
+                                        Text('Info', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const Spacer(),
+
+                            // --- GLASSMORPHISM FROSTED POINT CARD ---
+                            WowinGlassCard(
+                              borderRadius: 20,
+                              blurSigma: 16,
+                              padding: const EdgeInsets.all(20),
+                              backgroundColor: Colors.white.withValues(alpha: 0.14),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1.2),
+                              shadows: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                )
+                              ],
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              gradient: WowinGradients.goldBadge,
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: WowinColors.gold.withValues(alpha: 0.4),
+                                                  blurRadius: 10,
+                                                  offset: const Offset(0, 3),
+                                                )
+                                              ],
+                                            ),
+                                            child: const Icon(Icons.monetization_on, color: Colors.white, size: 22),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          const Text(
+                                            'Saldo Poin Aktif',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: WowinColors.accentMint.withValues(alpha: 0.25),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: WowinColors.accentMint.withValues(alpha: 0.5)),
+                                        ),
+                                        child: const Text(
+                                          'TERVERIFIKASI',
+                                          style: TextStyle(
+                                            color: WowinColors.accentMint,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      )
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      WowinAnimatedCounter(
+                                        targetValue: _userPoints,
+                                        style: const TextStyle(
+                                          fontSize: 38,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          letterSpacing: -1,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        'POIN',
+                                        style: TextStyle(
+                                          color: WowinColors.goldLight,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+
+                                  // Animated Dynamic Tier Progress
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      height: 6,
+                                      color: Colors.white.withValues(alpha: 0.15),
+                                      alignment: Alignment.centerLeft,
+                                      child: FractionallySizedBox(
+                                        widthFactor: (_userPoints / 1000).clamp(0.05, 1.0),
+                                        child: Container(
+                                          decoration: const BoxDecoration(
+                                            gradient: WowinGradients.goldBadge,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Klaim reward impian Anda', style: TextStyle(color: Colors.white60, fontSize: 11)),
+                                      Text('Target: 1.000 Poin', style: TextStyle(color: WowinColors.goldLight.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text('Kumpulkan lebih banyak poin untuk rewards eksklusif', style: TextStyle(color: Colors.white70, fontSize: 12), textAlign: TextAlign.center),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
 
-              Padding(
-                padding: const EdgeInsets.all(20.0),
+            // --- FILTER & SEARCH BAR SECTION ---
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Explore Rewards', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                    const SizedBox(height: 16),
+                    const Text(
+                      'Pilihan Hadiah Eksklusif',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: WowinColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
 
+                    // Filter Pills Horizontal
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _buildFilterButton('Semua', Icons.grid_view),
-                          _buildFilterButton('Poin Terendah', Icons.arrow_downward),
-                          _buildFilterButton('Poin Tertinggi', Icons.arrow_upward),
-                          _buildFilterButton('Terbaru', Icons.access_time),
+                          _buildFilterPill('Semua', Icons.auto_awesome),
+                          _buildFilterPill('Poin Terendah', Icons.arrow_downward),
+                          _buildFilterPill('Poin Tertinggi', Icons.arrow_upward),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
-                    TextField(
-                      onSubmitted: (value) {
-                        setState(() => _searchQuery = value);
-                        _fetchData();
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Cari rewards...',
-                        prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                        filled: true, fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                    // Modern Search Box
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: WowinColors.border),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: TextField(
+                        onSubmitted: (value) {
+                          setState(() => _searchQuery = value);
+                          _fetchData();
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Cari nama hadiah / produk...',
+                          hintStyle: const TextStyle(fontSize: 13, color: WowinColors.textMuted),
+                          prefixIcon: const Icon(Icons.search, color: WowinColors.primaryLight, size: 20),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    if (_isLoading)
-                      const Center(child: Padding(padding: EdgeInsets.all(20.0), child: CircularProgressIndicator(color: wowinLightGreen)))
-                    else if (_displayedRewards.isEmpty)
-                      const Center(child: Padding(padding: EdgeInsets.all(40.0), child: Text('Belum ada reward yang tersedia.', style: TextStyle(color: Colors.grey))))
-                    else
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _displayedRewards.length,
-                        itemBuilder: (context, index) {
-                          final reward = _displayedRewards[index];
-
-                          final int pointCost = int.tryParse(reward['points_required'].toString()) ?? 0;
-                          final bool isEnough = _userPoints >= pointCost;
-                          final formattedCost = NumberFormat('#,##0', 'en_US').format(pointCost);
-
-                          String imageUrl = 'https://via.placeholder.com/150';
-                          if (reward['foto_rewards'] != null) {
-                            imageUrl = 'https://mywowin.com/storage/${reward['foto_rewards']}';
-                          }
-
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 16), elevation: 0.5,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      imageUrl, width: 65, height: 65, fit: BoxFit.cover,
-                                      errorBuilder: (ctx, err, stack) => Container(width: 65, height: 65, color: Colors.blue[50], child: const Icon(Icons.image, color: Colors.blue)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(reward['nama_reward'] ?? 'Nama Reward', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
-                                        const SizedBox(height: 4),
-                                        Text(reward['deskripsi'] ?? '-', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.access_time, size: 12, color: Colors.grey),
-                                            const SizedBox(width: 4),
-                                            Text('Berlaku 30 hari', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                                          ],
-                                        )
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.monetization_on, color: Colors.amber, size: 16),
-                                          const SizedBox(width: 4),
-                                          Text(formattedCost, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 16)),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      ElevatedButton.icon(
-                                        onPressed: isEnough ? () => _claimReward(reward['id']) : null,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: isEnough ? wowinLightGreen : Colors.grey[100],
-                                          foregroundColor: isEnough ? Colors.white : Colors.grey[400],
-                                          elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                                          minimumSize: const Size(0, 32), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                        ),
-                                        icon: Icon(isEnough ? Icons.lock_open : Icons.lock, size: 12),
-                                        label: Text(isEnough ? 'Klaim' : 'Tidak Cukup', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text('${formattedPoints}/$formattedCost', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
-                                    ],
-                                  )
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+
+            // --- REWARD LIST / EMPTY / LOADING STATE ---
+            if (_isLoading)
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: WowinColors.accentMint),
+                ),
+              )
+            else if (_displayedRewards.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.card_giftcard_outlined, size: 64, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Belum ada reward yang cocok.',
+                        style: TextStyle(color: WowinColors.textSecondary, fontSize: 15, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final reward = _displayedRewards[index];
+                      final int pointCost = int.tryParse(reward['points_required'].toString()) ?? 0;
+                      final bool isEnough = _userPoints >= pointCost;
+                      final formattedCost = NumberFormat('#,##0', 'en_US').format(pointCost);
+
+                      String imageUrl = '';
+                      if (reward['foto_rewards'] != null && reward['foto_rewards'].toString().isNotEmpty) {
+                        final foto = reward['foto_rewards'].toString();
+                        imageUrl = foto.startsWith('http') ? foto : 'https://mywowin.com/storage/$foto';
+                      }
+
+                      return FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: isEnough ? WowinColors.accentMint.withValues(alpha: 0.3) : WowinColors.border,
+                              width: isEnough ? 1.4 : 1.0,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isEnough
+                                    ? WowinColors.primary.withValues(alpha: 0.06)
+                                    : Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
+                              )
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14.0),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Gambar Reward dengan Rounded Clip
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    color: Colors.grey.shade50,
+                                    border: Border.all(color: Colors.grey.shade100),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: imageUrl.isNotEmpty
+                                        ? WowinCachedImage(
+                                            imageUrl: imageUrl,
+                                            fit: BoxFit.cover,
+                                            errorWidget: Container(
+                                              color: WowinColors.primaryDark.withValues(alpha: 0.05),
+                                              child: const Icon(Icons.card_giftcard, color: WowinColors.primaryLight, size: 30),
+                                            ),
+                                          )
+                                        : Container(
+                                            color: WowinColors.primaryDark.withValues(alpha: 0.05),
+                                            child: const Icon(Icons.card_giftcard, color: WowinColors.primaryLight, size: 30),
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+
+                                // Detail Reward
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        reward['nama_reward'] ?? 'Nama Hadiah',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: WowinColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        reward['deskripsi'] ?? '-',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          color: WowinColors.textSecondary,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      // Point Tag Badge
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.monetization_on, color: WowinColors.gold, size: 14),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '$formattedCost Poin',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: WowinColors.goldDark,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+
+                                // Tombol Klaim Berstatus
+                                ElevatedButton(
+                                  onPressed: isEnough
+                                      ? () => _claimReward(reward['id'], reward['nama_reward'] ?? 'Reward')
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: WowinColors.primary,
+                                    disabledBackgroundColor: Colors.grey.shade100,
+                                    foregroundColor: Colors.white,
+                                    disabledForegroundColor: Colors.grey.shade400,
+                                    elevation: isEnough ? 2 : 0,
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                  child: Text(
+                                    isEnough ? 'Klaim' : 'Kurang',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isEnough ? Colors.white : Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    childCount: _displayedRewards.length,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildFilterButton(String title, IconData icon) {
-    bool isSelected = _selectedFilter == title;
+  Widget _buildFilterPill(String title, IconData icon) {
+    final bool isSelected = _selectedFilter == title;
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
-      child: InkWell(
-        onTap: () => _applyFilter(title),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? wowinLightGreen : Colors.white,
-            border: Border.all(color: isSelected ? wowinLightGreen : Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.grey[700]),
-              const SizedBox(width: 6),
-              Text(
-                title,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[800],
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 13,
-                ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        child: InkWell(
+          onTap: () => _applyFilter(title),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: isSelected ? WowinGradients.royalEmerald : null,
+              color: isSelected ? null : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected ? Colors.transparent : WowinColors.border,
               ),
-            ],
+              boxShadow: [
+                if (isSelected)
+                  BoxShadow(
+                    color: WowinColors.primary.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  )
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 14, color: isSelected ? Colors.white : WowinColors.textSecondary),
+                const SizedBox(width: 6),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : WowinColors.textPrimary,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

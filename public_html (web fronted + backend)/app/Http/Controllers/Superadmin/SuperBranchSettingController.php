@@ -35,6 +35,7 @@ public function index()
             'nama_pt' => 'required',
             'alamat'  => 'required',
             'no_telp' => 'required',
+            'google_maps_review_url' => 'nullable|url|max:500',
             'logo'    => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
@@ -51,6 +52,7 @@ public function index()
             'nama_pt'    => $request->nama_pt,
             'alamat'     => $request->alamat,
             'no_telp'    => $request->no_telp,
+            'google_maps_review_url' => $request->google_maps_review_url,
         ];
 
         if ($request->hasFile('logo')) {

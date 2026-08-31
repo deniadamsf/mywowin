@@ -7,19 +7,8 @@
     <title>footer</title>
 </head>
 <body>
-   <section class="bg-gradient-to-r from-green-100 to-green-50 text-gray-200 py-12 px-4 max-w-[1250px] mx-auto">
-
-        <div class="pl-10 pr-10">
-            <h1 class="text-lg font-bold text-gray-600 mb-2">
-                My Wowin, Toko Belanja Online Terlengkap Produk WOWIN FOOD
-            </h1>
-            <p class="text-sm text-gray-500 mb-2 text-justify">
-                PT Wowin Purnomo Putera adalah perusahaan yang bergerak di bidang produksi kecap dan bumbu masak dengan merek WOWIN FOOD. Dikenal dengan kualitasnya yang khas dan cita rasa yang autentik, PT Wowin Purnomo Putera telah menjadi pilihan banyak konsumen dalam memenuhi kebutuhan bumbu dapur berkualitas.  
-
-                My Wowin merupakan toko belanja online resmi yang menyediakan berbagai produk dari WOWIN FOOD, memastikan pelanggan mendapatkan produk asli dengan harga terbaik. Dengan layanan yang cepat dan terpercaya, My Wowin menjadi solusi belanja praktis bagi pecinta kuliner yang ingin menghadirkan rasa autentik dalam setiap masakan.
-            </p>
-        </div>
-        <div class="pl-10 pr-10">
+   <section class="bg-gradient-to-r from-green-100 to-green-50 text-gray-200 py-12 px-4 max-w-[1250px] mx-auto rounded-xl">
+        <div class="pl-6 pr-6 md:pl-10 md:pr-10">
             <h1 class="text-lg font-bold text-gray-600 mb-2">
                 My Wowin, Toko Belanja Online Terlengkap Produk WOWIN FOOD
             </h1>
@@ -105,10 +94,31 @@
                     <p class="text-sm"><i class="fas fa-phone"></i> 081216301220</p>
                 </div>
     
-                <!-- Aplikasi Mobile -->
-                <div class="hidden lg:block">
-                    <h2 class="text-lg font-semibold mb-3">Alamat Kami</h2>
-                    <div class="flex flex-col space-y-3">
+                <!-- Aplikasi Mobile & Alamat Kami -->
+                <div class="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-1">
+                    <h2 class="text-lg font-semibold mb-3">Unduh Aplikasi</h2>
+                    <p class="text-xs text-gray-500 mb-3 leading-relaxed">
+                        Belanja lebih praktis dan dapatkan promo eksklusif di aplikasi <strong>My Wowin</strong>.
+                    </p>
+                    <a href="https://play.google.com/store/apps/details?id=com.wowinfood.mywowin" 
+                       target="_blank" 
+                       rel="noopener noreferrer" 
+                       class="inline-flex items-center bg-gray-900 hover:bg-black text-white px-3.5 py-2 rounded-lg transition-all duration-200 shadow hover:shadow-md group transform hover:-translate-y-0.5 mb-5"
+                       title="Download My Wowin di Google Play Store">
+                        <svg class="w-6 h-6 mr-2.5 flex-shrink-0" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                            <path fill="#4285f4" d="M325.3 234.3L104.6 13l280.8 161.2-60.1 59.9.02.2z"/>
+                            <path fill="#34a853" d="M47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0z"/>
+                            <path fill="#fbbc04" d="M470.9 220.3l-85.5-49.1-60.1 59.9 60.1 59.9 85.5-49.1c16.2-9.3 26.2-25.7 26.2-44.4s-10-35.1-26.2-44.4z"/>
+                            <path fill="#ea4335" d="M325.3 277.5l60.1 59.9L104.6 498.8l220.7-221.3z"/>
+                        </svg>
+                        <div class="text-left">
+                            <div class="text-[9px] uppercase tracking-wider text-gray-300 font-medium leading-none">TEMUKAN DI</div>
+                            <div class="text-xs sm:text-sm font-semibold text-white tracking-wide leading-tight">Google Play</div>
+                        </div>
+                    </a>
+
+                    <h2 class="text-lg font-semibold mb-2">Alamat Kami</h2>
+                    <div class="flex flex-col space-y-1 text-sm text-gray-500">
                        <p>Jl. Raya No.Km 07, Duwet, Ngetal, Pogalan, Trenggalek Regency, East Java 66371</p>
                     </div>
                 </div>

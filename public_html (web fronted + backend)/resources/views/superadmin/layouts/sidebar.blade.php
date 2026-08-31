@@ -549,6 +549,46 @@
                     </ul>
                 </div>
             </li>
+
+            {{-- Ulasan & Rating Pelanggan --}}
+            <li x-data="{ open: {{ request()->is('superadmin/reviews*') ? 'true' : 'false' }} }">
+                <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 {{ request()->is('superadmin/reviews*') ? 'bg-purple-50 text-purple-700 font-medium' : '' }}">
+                    <div class="flex items-center gap-3">
+                        <div class="{{ request()->is('superadmin/reviews*') ? 'text-purple-600' : 'text-gray-500' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+                            </svg>
+                        </div>                        
+                        <span class="text-sm font-medium">Ulasan & Rating</span>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" 
+                         fill="none" 
+                         viewBox="0 0 24 24" 
+                         stroke-width="2" 
+                         stroke="currentColor" 
+                         class="w-3.5 h-3.5 transition-transform duration-200" 
+                         :class="open ? 'rotate-90' : ''">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                </button>
+            
+                <!-- Submenu -->
+                <div x-show="open" 
+                     x-transition:enter="transition ease-out duration-200" 
+                     x-transition:enter-start="opacity-0 -translate-y-1" 
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     class="mt-1 ml-6 pl-3 border-l border-gray-200">
+                    <ul class="space-y-1 py-1">
+                        <li>
+                            <a href="{{ route('superadmin.reviews.index') }}" 
+                               class="flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-all duration-200 
+                                      {{ request()->is('superadmin/reviews*') ? 'text-purple-700 bg-purple-50 font-medium' : 'text-gray-600 hover:bg-gray-100' }}">
+                                <span>Pusat Moderasi</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
           
        <div class="flex flex-col h-full">
     <!-- Scrollable menu content -->

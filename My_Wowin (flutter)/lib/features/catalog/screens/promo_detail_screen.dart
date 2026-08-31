@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../providers/catalog_provider.dart';
+import 'package:intl/intl.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../core/theme/wowin_theme.dart';
+import '../../../core/widgets/wowin_cached_image.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 
@@ -15,10 +18,11 @@ class PromoDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _PromoDetailScreenState extends ConsumerState<PromoDetailScreen> {
-  static const Color wowinGreen = Color(0xFF1B5E20);
-  int _qty = 1;
+  static const Color wowinGreen = WowinColors.primary;
 
-  // Fungsi untuk membuang tag HTML (seperti <p>, <b>) dari Rich Text Editor Laravel
+  int _qty = 1;
+  final NumberFormat _currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
   String _parseHtmlString(String htmlString) {
     RegExp exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
     return htmlString.replaceAll(exp, '').replaceAll('&nbsp;', ' ').trim();
@@ -31,195 +35,370 @@ class _PromoDetailScreenState extends ConsumerState<PromoDetailScreen> {
     num price = num.tryParse(bundling['price']?.toString() ?? '0') ?? 0;
     num priceBefore = num.tryParse(bundling['price_before']?.toString() ?? '0') ?? 0;
 
-    // Hitung persentase diskon
     int discountPercent = 0;
     if (priceBefore > 0 && priceBefore > price) {
       discountPercent = (((priceBefore - price) / priceBefore) * 100).round();
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0A4A1A), Color(0xFF2E7D32)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: const Text('Detail Promo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
+      backgroundColor: WowinColors.background,
+      appBar: WowinAppBar.standard(title: 'Detail Promo Bundling'),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- GAMBAR PROMO ---
+            // ==========================================================
+            // 1. BANNER PROMO (FIT 16:9 DENGAN TAMPILAN FULL ELEGAN)
+            // ==========================================================
             Container(
               width: double.infinity,
-              color: Colors.grey[50],
-              padding: const EdgeInsets.all(16),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.contain,
-                height: 300,
-                errorBuilder: (ctx, err, stack) => const Icon(Icons.image, size: 100, color: Colors.grey),
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: WowinCachedImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    errorWidget: Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(Icons.image, size: 60, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
 
-            // --- INFO PROMO ---
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+            // ==========================================================
+            // 2. KARTU DETAIL PROMO & HARGA
+            // ==========================================================
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(bundling['nama_bundling'] ?? 'Paket Promo', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, height: 1.2)),
-                  const SizedBox(height: 12),
+                  // Badge Kategori Promo
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: WowinColors.promoRedSoft,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'PROMO BUNDLING SPESIAL',
+                      style: TextStyle(
+                        color: WowinColors.promoRed,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Judul Bundling
+                  Text(
+                    bundling['nama_bundling'] ?? 'Paket Promo',
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                      height: 1.3,
+                      color: WowinColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Baris Harga & Diskon
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('Rp ${price.toStringAsFixed(0)}', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.red)),
-                      const SizedBox(width: 12),
+                      Text(
+                        _currency.format(price),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: WowinColors.promoRed,
+                        ),
+                      ),
                       if (priceBefore > 0 && priceBefore > price) ...[
-                        Text('Rp ${priceBefore.toStringAsFixed(0)}', style: const TextStyle(fontSize: 14, decoration: TextDecoration.lineThrough, color: Colors.grey)),
+                        const SizedBox(width: 10),
+                        Text(
+                          _currency.format(priceBefore),
+                          style: TextStyle(
+                            fontSize: 14,
+                            decoration: TextDecoration.lineThrough,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(4)),
-                          child: Text('Hemat $discountPercent%', style: TextStyle(color: Colors.green[700], fontSize: 11, fontWeight: FontWeight.bold)),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Text(
+                            'Hemat $discountPercent%',
+                            style: TextStyle(
+                              color: Colors.green.shade800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                      ]
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
 
-                  // --- INFO TOKO (Mirip Web) ---
+            const SizedBox(height: 14),
+
+            // ==========================================================
+            // 3. KARTU RESMI DISTRIBUTOR
+            // ==========================================================
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade200),
-                        borderRadius: BorderRadius.circular(8)
+                      color: wowinGreen.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
+                    child: const Icon(Icons.verified, color: wowinGreen, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.storefront, color: Colors.grey, size: 28),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text('PT. Wowin Purnomo Putera', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            Text('Pengiriman pada hari yang sama.', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                          ],
-                        )
+                        Text(
+                          'PT WOWIN PURNOMO PUTERA',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: WowinColors.textPrimary),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Distributor & Pabrik Resmi • Pengiriman Cepat',
+                          style: TextStyle(fontSize: 11, color: WowinColors.textSecondary),
+                        ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-                  const Text('Syarat & Ketentuan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(
-                    // Memanggil field syarat_ketentuan atau deskripsi dari API
-                    _parseHtmlString(bundling['syarat_ketentuan']?.toString() ?? bundling['deskripsi']?.toString() ?? 'Tidak ada syarat & ketentuan khusus.'),
-                    style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5),
-                  ),
-                  const SizedBox(height: 40),
                 ],
               ),
-            )
+            ),
+
+            const SizedBox(height: 14),
+
+            // ==========================================================
+            // 4. KARTU SYARAT & KETENTUAN
+            // ==========================================================
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 18, color: WowinColors.textPrimary),
+                      SizedBox(width: 8),
+                      Text(
+                        'Syarat & Ketentuan Promo',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: WowinColors.textPrimary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _parseHtmlString(bundling['syarat_ketentuan']?.toString() ?? bundling['deskripsi']?.toString() ?? 'Tidak ada syarat & ketentuan khusus. Promo berlaku selama persediaan masih ada.'),
+                    style: const TextStyle(fontSize: 13.5, color: WowinColors.textSecondary, height: 1.5),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 100),
           ],
         ),
       ),
 
-      // --- TOMBOL BELI STICKY DI BAWAH ---
+      // ==========================================================
+      // 5. STICKY BOTTOM ACTION BAR
+      // ==========================================================
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
-        ),
-        child: Row(
-          children: [
-            // Jumlah
-            Container(
-              height: 48,
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-              child: Row(
-                children: [
-                  IconButton(onPressed: () => setState(() => _qty > 1 ? _qty-- : null), icon: const Icon(Icons.remove, size: 20)),
-                  Text('$_qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  IconButton(onPressed: () => setState(() => _qty++), icon: const Icon(Icons.add, size: 20)),
-                ],
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, -3),
             ),
-            const SizedBox(width: 16),
-            // Tombol Add to Cart
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () async {
-                  final authState = ref.read(authProvider);
-
-                  // 1. Wajib Login
-                  if (!authState.isAuthenticated) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Silakan login terlebih dahulu!')));
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-                    return;
-                  }
-
-                  // 2. Munculkan Loading
-                  showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator(color: wowinGreen)));
-
-                  try {
-                    // Gunakan id_bundling, atau fallback ke id jika Laravel mengirimkan format yang berbeda
-                    final idBundling = bundling['id_bundling'] ?? bundling['id'];
-
-                    final response = await http.post(
-                      Uri.parse('$baseUrl/carts/addBundling'),
-                      headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ${authState.token}',
-                      },
-                      body: json.encode({
-                        'bundling_id': idBundling,
-                        'quantity': _qty,
-                      }),
-                    );
-
-                    if (mounted) Navigator.pop(context); // Tutup Loading
-
-                    if (response.statusCode == 200 || response.statusCode == 201) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Yeay! Promo berhasil masuk keranjang!'), backgroundColor: wowinGreen));
-                    } else {
-                      // Tangkap pesan error ASLI dari API Laravel agar kita tahu penyebab pastinya
-                      String errorMessage = 'Error ${response.statusCode}: Gagal masuk keranjang.';
-                      try {
-                        final errorData = json.decode(response.body);
-                        errorMessage = errorData['message'] ?? errorMessage;
-                      } catch (_) {}
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red, duration: const Duration(seconds: 4))
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error jaringan: $e'), backgroundColor: Colors.red));
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Text('+ Keranjang', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-            )
           ],
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              // Stepper Kuantitas
+              Container(
+                height: 46,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => setState(() => _qty > 1 ? _qty-- : null),
+                      icon: const Icon(Icons.remove, size: 18),
+                      color: _qty > 1 ? WowinColors.textPrimary : Colors.grey.shade400,
+                    ),
+                    Text(
+                      '$_qty',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: WowinColors.textPrimary),
+                    ),
+                    IconButton(
+                      onPressed: () => setState(() => _qty++),
+                      icon: const Icon(Icons.add, size: 18),
+                      color: WowinColors.primary,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+
+              // Tombol Tambah ke Keranjang
+              Expanded(
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final authState = ref.read(authProvider);
+
+                      if (!authState.isAuthenticated) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Silakan login terlebih dahulu!')),
+                        );
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+                        return;
+                      }
+
+                      final messenger = ScaffoldMessenger.of(context);
+                      final navigator = Navigator.of(context);
+
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (dlgCtx) => const Center(child: CircularProgressIndicator(color: wowinGreen)),
+                      );
+
+                      try {
+                        final idBundling = bundling['id_bundling'] ?? bundling['id'];
+
+                        final response = await http.post(
+                          Uri.parse('$baseUrl/carts/addBundling'),
+                          headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ${authState.token}',
+                          },
+                          body: json.encode({
+                            'bundling_id': idBundling,
+                            'quantity': _qty,
+                          }),
+                        );
+
+                        navigator.pop();
+
+                        if (response.statusCode == 200 || response.statusCode == 201) {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Promo bundling berhasil ditambahkan ke keranjang!'),
+                              backgroundColor: wowinGreen,
+                            ),
+                          );
+                        } else {
+                          String errorMessage = 'Gagal menambahkan ke keranjang.';
+                          try {
+                            final errorData = json.decode(response.body);
+                            errorMessage = errorData['message'] ?? errorMessage;
+                          } catch (_) {}
+
+                          messenger.showSnackBar(
+                            SnackBar(content: Text(errorMessage), backgroundColor: WowinColors.promoRed),
+                          );
+                        }
+                      } catch (e) {
+                        navigator.pop();
+                        messenger.showSnackBar(
+                          const SnackBar(content: Text('Terjadi kesalahan jaringan.'), backgroundColor: WowinColors.promoRed),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: WowinColors.promoRed,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_shopping_cart, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          '+ Keranjang',
+                          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -220,6 +220,16 @@
             </div>
             @endforeach
 
+            {{-- Baris Potongan Poin --}}
+            @if(($order->potongan_poin ?? 0) > 0)
+                <div class="px-4 py-2 bg-amber-50 border-t border-amber-100 flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+                        <i class="ri-coins-line"></i> Potongan Poin ({{ number_format($order->points_used ?? 0) }} Poin)
+                    </div>
+                    <span class="text-amber-800 font-bold text-xs">- Rp{{ number_format($order->potongan_poin, 0, ',', '.') }}</span>
+                </div>
+            @endif
+
             {{-- Baris Potongan Retur --}}
             @if($order->total_potongan_retur > 0)
                 <div class="px-4 py-2 bg-orange-50 border-t border-orange-100 flex items-center justify-between">

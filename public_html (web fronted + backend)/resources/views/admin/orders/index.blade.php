@@ -395,7 +395,8 @@
             <div class="flex gap-2">
                 @php
                     // 1. Bersihkan nomor telepon
-                    $noTelp = preg_replace('/[^0-9]/', '', $order->user->no_telp);
+                    $rawPhone = $order->user->membership->no_hp ?? $order->user->no_telp ?? '';
+                    $noTelp = preg_replace('/[^0-9]/', '', $rawPhone);
                     if (str_starts_with($noTelp, '0')) {
                         $noTelp = '62' . substr($noTelp, 1);
                     }
@@ -424,14 +425,16 @@
                              "Mohon segera lakukan pembayaran dan kirimkan bukti transfernya ya kak. Terima kasih!";
                 @endphp
 
+                @if(!empty($noTelp))
                 <a href="https://wa.me/{{ $noTelp }}?text={{ urlencode($pesan) }}" 
                    target="_blank" 
                    class="bg-green-500 text-white p-2 rounded-full hover:bg-green-600 shadow-md transition-transform hover:scale-110"
                    title="Kirim Konfirmasi WhatsApp">
                     <i class="fab fa-whatsapp"></i>
                 </a>
+                @endif
 
-                {{-- <a href="tel:{{ $order->user->no_telp }}" 
+                {{-- <a href="tel:{{ $rawPhone }}" 
                    class="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 shadow-md transition-transform hover:scale-110"
                    title="Hubungi Via Telepon">
                     <i class="fas fa-phone-alt"></i>
@@ -440,10 +443,10 @@
         </div>
     </div>
 
-                            {{-- <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Nomor Telepon</label>
-                                <span class="text-sm font-medium">{{ $order->user->no_telp }}</span>
-                            </div> --}}
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Nomor Telepon / WA</label>
+                                <span class="text-sm font-medium">{{ $order->user->membership->no_hp ?? $order->user->no_telp ?? '-' }}</span>
+                            </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Alamat Pengiriman</label>
                                 <div class="flex">

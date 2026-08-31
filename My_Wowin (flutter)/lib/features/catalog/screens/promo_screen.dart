@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../../../core/theme/wowin_theme.dart';
+import '../../../core/widgets/wowin_cached_image.dart';
+import '../../../core/widgets/offline_indicator.dart';
 import 'promo_detail_screen.dart';
 
 class PromoScreen extends StatelessWidget {
@@ -6,117 +10,198 @@ class PromoScreen extends StatelessWidget {
 
   const PromoScreen({super.key, required this.bundlings});
 
-  static const Color wowinGreen = Color(0xFF1B5E20);
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0A4A1A), Color(0xFF2E7D32)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: const Text('Promo Spesial WOWIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
-      body: bundlings.isEmpty
-          ? const Center(
-        child: Text(
-          'Yah, belum ada promo spesial saat ini.',
-          style: TextStyle(color: Colors.grey, fontSize: 16),
-        ),
-      )
-          : ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: bundlings.length,
-        itemBuilder: (context, index) {
-          final bundling = bundlings[index];
-          String imageUrl = 'https://mywowin.com/storage/${bundling['barang_bundling']}';
-          num price = num.tryParse(bundling['price']?.toString() ?? '0') ?? 0;
-          num priceBefore = num.tryParse(bundling['price_before']?.toString() ?? '0') ?? 0;
+    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.red.shade100, width: 1.5),
-              boxShadow: [
-                BoxShadow(color: Colors.red.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4))
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PromoDetailScreen(bundling: bundling))),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // --- Gambar Promo Lebih Besar & Full Width ---
-                    Image.network(
-                      imageUrl,
-                      width: double.infinity,
-                      height: 200,
-                      fit: BoxFit.cover,
-                      errorBuilder: (ctx, err, stack) => Container(height: 200, color: Colors.grey[200], child: const Icon(Icons.image, size: 50, color: Colors.grey)),
+    return Scaffold(
+      backgroundColor: WowinColors.background,
+      appBar: WowinAppBar.standard(title: 'Promo Spesial Wowin'),
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(
+            child: bundlings.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.local_offer_outlined, size: 70, color: Colors.grey.shade300),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Belum ada promo spesial saat ini.',
+                          style: TextStyle(color: WowinColors.textSecondary, fontSize: 15, fontWeight: FontWeight.w500),
+                        ),
+                      ],
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(6)),
-                            child: Text('SUPER DEAL 🔥', style: TextStyle(color: Colors.red[800], fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            bundling['nama_bundling'] ?? 'Promo Menarik',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (priceBefore > 0 && priceBefore > price)
-                                    Text('Rp ${priceBefore.toStringAsFixed(0)}', style: const TextStyle(fontSize: 13, decoration: TextDecoration.lineThrough, color: Colors.grey)),
-                                  Text('Rp ${price.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.red)),
-                                ],
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(18),
+                    itemCount: bundlings.length,
+                    itemBuilder: (context, index) {
+                      final bundling = bundlings[index];
+                      String imageUrl = 'https://mywowin.com/storage/${bundling['barang_bundling']}';
+                      num price = num.tryParse(bundling['price']?.toString() ?? '0') ?? 0;
+                      num priceBefore = num.tryParse(bundling['price_before']?.toString() ?? '0') ?? 0;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 22),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: WowinColors.promoRedSoft, width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: WowinColors.promoRed.withValues(alpha: 0.08),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            )
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: InkWell(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PromoDetailScreen(bundling: bundling),
                               ),
-                              ElevatedButton(
-                                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PromoDetailScreen(bundling: bundling))),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                  elevation: 2,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // --- GAMBAR BANNER PROMO (ASPECT RATIO 16:9) ---
+                                Stack(
+                                  children: [
+                                    AspectRatio(
+                                      aspectRatio: 16 / 9,
+                                      child: WowinCachedImage(
+                                        imageUrl: imageUrl,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                        errorWidget: Container(
+                                          color: Colors.grey.shade100,
+                                          child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 14,
+                                      left: 14,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          gradient: WowinGradients.superDeal,
+                                          borderRadius: BorderRadius.circular(8),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: WowinColors.promoRed.withValues(alpha: 0.4),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            )
+                                          ],
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.local_fire_department, color: Colors.white, size: 14),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'SUPER DEAL',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w900,
+                                                letterSpacing: 0.8,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                child: const Text('Beli Sekarang', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              )
-                            ],
+
+                                // --- DETAIL DESKRIPSI & HARGA ---
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        bundling['nama_bundling'] ?? 'Promo Menarik',
+                                        style: const TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                          color: WowinColors.textPrimary,
+                                          height: 1.25,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              if (priceBefore > 0 && priceBefore > price)
+                                                Text(
+                                                  currencyFormatter.format(priceBefore),
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    decoration: TextDecoration.lineThrough,
+                                                    color: WowinColors.textMuted,
+                                                  ),
+                                                ),
+                                              Text(
+                                                currencyFormatter.format(price),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 20,
+                                                  color: WowinColors.promoRed,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          ElevatedButton.icon(
+                                            onPressed: () => Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => PromoDetailScreen(bundling: bundling),
+                                              ),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: WowinColors.primary,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                                              elevation: 2,
+                                            ),
+                                            icon: const Icon(Icons.shopping_bag_outlined, color: Colors.white, size: 16),
+                                            label: const Text(
+                                              'Lihat Promo',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
-                    )
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

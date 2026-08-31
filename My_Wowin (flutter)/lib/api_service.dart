@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -24,7 +25,7 @@ class ApiService {
 
       if (response.statusCode == 200) {
         // Jika login berhasil dan token didapatkan
-        print('Token: ${responseData['token']}');
+        debugPrint('Token: ${responseData['token']}');
         return {
           'success': true,
           'message': responseData['message'],
@@ -71,7 +72,7 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Error Fetch Catalog: $e');
+      debugPrint('Error Fetch Catalog: $e');
       return {
         'success': false,
         'message': 'Gagal terhubung ke server. Periksa koneksi internet Anda.',

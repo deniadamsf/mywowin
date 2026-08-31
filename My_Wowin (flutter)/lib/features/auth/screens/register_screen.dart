@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/theme/wowin_theme.dart';
 import 'otp_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -12,12 +13,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  static const Color wowinGreen = Color(0xFF1B5E20);
-  static const wowinGradient = LinearGradient(
-    colors: [Color(0xFF0A4A1A), Color(0xFF2E7D32)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+  static const Color wowinGreen = WowinColors.primary;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -189,13 +185,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50, // Background dasar aplikasi sedikit abu-abu
-      appBar: AppBar(
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(decoration: const BoxDecoration(gradient: wowinGradient)),
-        title: const Text('Daftar Akun Baru', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
+      backgroundColor: WowinColors.background,
+      appBar: WowinAppBar.standard(title: 'Daftar Akun Baru'),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -203,12 +194,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
               // Header melengkung di atas
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
                 decoration: const BoxDecoration(
-                  gradient: wowinGradient,
-                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+                  gradient: WowinGradients.royalEmerald,
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
                 ),
-                child: const Text('Lengkapi data di bawah ini untuk bergabung menjadi Mitra Wowin Food.', style: TextStyle(color: Colors.white, fontSize: 14, height: 1.5)),
+                child: const Text(
+                  'Lengkapi data di bawah ini untuk bergabung menjadi Mitra Wowin Food.',
+                  style: TextStyle(color: Colors.white, fontSize: 12.5, height: 1.4),
+                ),
               ),
 
               // Form menjorok ke atas (menggunakan Transform)
@@ -246,7 +240,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               const Text('Kantor Cabang', style: TextStyle(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 8),
                               DropdownButtonFormField<String>(
-                                value: _selectedCabang,
+                                initialValue: _selectedCabang,
                                 hint: const Text('Pilih Cabang Terdekat', style: TextStyle(fontSize: 14)),
                                 decoration: InputDecoration(
                                   prefixIcon: const Icon(Icons.location_city, color: wowinGreen, size: 22),

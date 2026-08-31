@@ -43,7 +43,7 @@ class ChatNotifier extends Notifier<ChatState> {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

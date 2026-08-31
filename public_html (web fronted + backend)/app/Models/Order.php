@@ -34,6 +34,8 @@ class Order extends Model
         'foto_kerusakan',
         'tipe_retur',
         'total_potongan_retur',
+        'points_used',
+        'potongan_poin',
     ];
 
     // Relasi: Order dimiliki oleh User (member)
@@ -58,5 +60,13 @@ class Order extends Model
         return $this->belongsTo(Product::class, 'produk_rusak_id', 'id_product');
     }
 
-   
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'order_id', 'id');
+    }
+
+    public function getIsReviewedAttribute()
+    {
+        return $this->reviews()->exists();
+    }
 }

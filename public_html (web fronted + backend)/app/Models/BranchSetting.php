@@ -20,6 +20,7 @@ class BranchSetting extends Model
         'logo',
         'alamat',
         'no_telp',
+        'google_maps_review_url',
     ];
 
     public function user()

@@ -1,8 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="my_wowin"
+        android:label="My Wowin"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
+
+        <!-- METADATA ICON NOTIFIKASI -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/wowin_green" />
 
         <!-- ACTIVITY UTAMA FLUTTER (BIARKAN SEPERTI ASLINYA) -->
         <activity
@@ -42,6 +50,27 @@
     </application>
 
     <queries>
+        <!-- Package visibility untuk WhatsApp dan WhatsApp Business -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+
+        <!-- Intent queries untuk URL Launcher (Browser & Custom Schemes) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="whatsapp" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
