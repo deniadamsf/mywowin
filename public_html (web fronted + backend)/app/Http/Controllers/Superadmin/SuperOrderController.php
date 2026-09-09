@@ -422,4 +422,74 @@ public function exportExcel(Request $request)
 
         return view('admin.orders.shipping_label', compact('order', 'branchSetting'));
     }
+
+    /**
+     * Terbitkan Resi J&T Express Masal (Bulk Auto AWB)
+     */
+    public function bulkGenerateJntAwb(Request $request)
+    {
+        $rawIds = $request->input('order_ids');
+        $ids = is_string($rawIds) ? array_filter(explode(',', $rawIds)) : (array) $rawIds;
+
+        if (empty($ids)) {
+            return redirect()->back()->with('error', 'Pilih minimal satu pesanan untuk membuat resi masal.');
+        }
+
+        $orders = Order::with(['orderItems.product', 'user.membership'])
+            ->whereIn('id', $ids)
+            ->whereNull('no_resi')
+            ->where('status', '!=', 'canceled')
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return redirect()->back()->with('error', 'Tidak ada pesanan terpilih yang belum memiliki resi.');
+        }
+
+        $successCount = 0;
+        $failedCount = 0;
+        $failedMessages = [];
+
+        foreach ($orders as $order) {
+            $result = \App\Services\JntService::createOrder($order);
+            if ($result['success']) {
+                $successCount++;
+            } else {
+                $failedCount++;
+                $failedMessages[] = "#{$order->invoice_number}: {$result['message']}";
+            }
+        }
+
+        $msg = "Pembuatan Resi Masal Selesai: {$successCount} resi berhasil diterbitkan";
+        if ($failedCount > 0) {
+            $msg .= ", {$failedCount} gagal (" . implode('; ', array_slice($failedMessages, 0, 3)) . ")";
+            return redirect()->back()->with('warning', $msg);
+        }
+
+        return redirect()->back()->with('success', $msg);
+    }
+
+    /**
+     * Cetak Label Thermal Masal J&T (Bulk Thermal 100x150mm)
+     */
+    public function bulkPrintShippingLabel(Request $request)
+    {
+        $rawIds = $request->input('order_ids') ?? $request->input('ids');
+        $ids = is_string($rawIds) ? array_filter(explode(',', $rawIds)) : (array) $rawIds;
+
+        if (empty($ids)) {
+            return redirect()->back()->with('error', 'Pilih minimal satu pesanan untuk dicetak labelnya.');
+        }
+
+        $orders = Order::with(['orderItems.product', 'user.membership'])
+            ->whereIn('id', $ids)
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return redirect()->back()->with('error', 'Data pesanan terpilih tidak ditemukan.');
+        }
+
+        $branchSettings = \App\Models\BranchSetting::all()->keyBy('enum_value');
+
+        return view('admin.orders.bulk_shipping_label', compact('orders', 'branchSettings'));
+    }
 }

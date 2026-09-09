@@ -330,6 +330,10 @@ Route::delete('/superadmin/artikels/{artikel}/hapus-foto', [SuperArtikelControll
     
     Route::get('/rekap-retur', [RekapReturController::class, 'index'])->name('rekap.retur');
 
+    // Route Operasional J&T Express Masal (Bulk)
+    Route::post('orders/bulk-jnt-generate', [SuperOrderController::class, 'bulkGenerateJntAwb'])->name('orders.bulk-jnt-generate');
+    Route::match(['get', 'post'], 'orders/bulk-jnt-label', [SuperOrderController::class, 'bulkPrintShippingLabel'])->name('orders.bulk-jnt-label');
+
     // Route tambahan untuk export PDF
     Route::get('orders/export-pdf', [SuperOrderController::class, 'exportPdf'])->name('orders.exportPdf');
     Route::get('orders/{order}/print-invoice', [SuperOrderController::class, 'printInvoice'])->name('orders.print-invoice');

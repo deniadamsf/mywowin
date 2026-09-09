@@ -212,10 +212,49 @@
         </div>
         
 
+        <!-- Bulk Action Bar J&T Express -->
+        <div id="bulk-action-bar" class="hidden mb-4 p-4 bg-gradient-to-r from-purple-800 via-indigo-900 to-purple-900 text-white rounded-xl shadow-lg border border-purple-600 flex flex-wrap justify-between items-center gap-3 animate__animated animate__fadeIn">
+            <div class="flex items-center gap-3">
+                <span class="bg-white/20 px-3 py-1.5 rounded-full text-xs font-bold text-white border border-white/20">
+                    <span id="selected-count">0</span> Pesanan Dipilih
+                </span>
+                <span class="text-xs text-purple-200">Operasional Masal J&T:</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Form Buat Resi Masal -->
+                <form id="form-bulk-resi" action="{{ route('superadmin.orders.bulk-jnt-generate') }}" method="POST" onsubmit="return confirmBulkResi()">
+                    @csrf
+                    <input type="hidden" name="order_ids" id="bulk-resi-ids">
+                    <button type="submit" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg text-xs font-bold hover:from-red-700 hover:to-red-800 transition flex items-center shadow-md">
+                        <i class="fas fa-shipping-fast mr-1.5"></i> 🚀 Buat Resi Masal (Auto AWB)
+                    </button>
+                </form>
+
+                <!-- Tombol Cetak Label Thermal Masal -->
+                <button type="button" onclick="submitBulkPrint()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-700 text-white rounded-lg text-xs font-bold hover:from-emerald-700 hover:to-green-800 transition flex items-center shadow-md">
+                    <i class="fas fa-barcode mr-1.5"></i> 🖨️ Cetak Label Masal (Thermal)
+                </button>
+
+                <!-- Batalkan Pilihan -->
+                <button type="button" onclick="deselectAll()" class="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs transition border border-white/20">
+                    ✕ Batal
+                </button>
+            </div>
+        </div>
+
+        <!-- Hidden Form for Bulk Print -->
+        <form id="form-bulk-print" action="{{ route('superadmin.orders.bulk-jnt-label') }}" method="POST" target="_blank" class="hidden">
+            @csrf
+            <input type="hidden" name="order_ids" id="bulk-print-ids">
+        </form>
+
         <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-100">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="bg-gray-50 text-gray-700 border-b">
+                        <th class="px-3 py-3 text-center w-10">
+                            <input type="checkbox" id="check-all" class="rounded text-purple-700 focus:ring-purple-500 w-4 h-4 cursor-pointer" onchange="toggleSelectAll(this)" title="Pilih Semua">
+                        </th>
                         <th class="px-6 py-3 text-left">
                             <div class="flex items-center">
                                 <i class="fas fa-image mr-2 text-purple-700"></i>
@@ -257,6 +296,9 @@
                 <tbody>
                     @forelse ($orders as $order)
                         <tr class="hover:bg-gray-50 border-b border-gray-100 transition-colors duration-200">
+                            <td class="px-3 py-4 text-center">
+                                <input type="checkbox" name="order_ids[]" value="{{ $order->id }}" class="order-check rounded text-purple-700 focus:ring-purple-500 w-4 h-4 cursor-pointer" onchange="updateBulkBar()">
+                            </td>
                             <td class="px-6 py-4">
                                 <div class="flex justify-center items-center">
                                     @if (!empty($order->bukti_transfer)) 
@@ -265,7 +307,7 @@
                                              alt="{{ $order->bukti_transfer}}">
                                     @else
                                         <div class="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200">
-                                            <i class="fas fa-image text-gray-400 text-xl"></i>
+                                             <i class="fas fa-image text-gray-400 text-xl"></i>
                                         </div>
                                     @endif
                                 </div>
@@ -286,7 +328,7 @@
                                 <div class="text-xs max-w-xs overflow-hidden">
                                     @forelse ($order->orderItems->take(2) as $item)
                                         <div class="mb-1">
-                                            {{ $item->quantity }}x {{ Str::limit($item->product_name, 20) }}
+                                             {{ $item->quantity }}x {{ Str::limit($item->product_name, 20) }}
                                         </div>
                                     @empty
                                         <span class="text-gray-500">Tidak ada produk</span>
@@ -301,9 +343,14 @@
                                 <span>{{ \Carbon\Carbon::parse($order->paid_at)->format('d M Y, H:i') }}</span>
                             </td>
                             <td class="px-6 py-4">
-                                <div class="flex justify-center items-center gap-2">
+                                <div class="flex justify-center items-center gap-1.5">
+                                    @if(!empty($order->no_resi))
+                                        <!-- Tombol Cepat Cetak Label Thermal J&T -->
+                                        <a href="{{ route('superadmin.orders.jnt-label', $order->id) }}" target="_blank" class="px-2.5 py-1.5 text-white text-xs bg-red-600 rounded-md hover:bg-red-700 transition flex items-center shadow-xs font-semibold" title="Cetak Label Thermal J&T">
+                                            <i class="fas fa-barcode mr-1"></i> Label
+                                        </a>
+                                    @endif
                                     <!-- Detail Button -->
-<!-- Detail Button -->
 <div x-data="{ open: false }" class="relative">
     <button x-on:click="open = true" class="px-3 py-1.5 text-white text-xs bg-purple-700 rounded-md hover:bg-purple-800 transition flex items-center">
         <i class="fas fa-eye mr-1"></i> Detail
@@ -806,7 +853,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center text-red-500 py-4">Data Artikel belum ada.</td>
+                            <td colspan="7" class="text-center text-gray-500 py-6">Belum ada data pesanan yang ditemukan.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -842,15 +889,78 @@
             document.getElementById('toast-success').classList.remove('hidden');
             setTimeout(() => {
                 document.getElementById('toast-success').classList.add('hidden');
-            }, 3000);
+            }, 3500);
         @endif
         @if (session('error'))
-            // Handle error toast if needed
+            toastr.error("{{ session('error') }}");
+        @endif
+        @if (session('warning'))
+            toastr.warning("{{ session('warning') }}");
         @endif
 
-        document.getElementById('close-toast').addEventListener('click', function() {
+        document.getElementById('close-toast')?.addEventListener('click', function() {
             document.getElementById('toast-success').classList.add('hidden');
         });
     });
+
+    // --- MANAJEMEN CHECKBOX & AKSI MASAL J&T EXPRESS ---
+    function toggleSelectAll(master) {
+        const checkboxes = document.querySelectorAll('.order-check');
+        checkboxes.forEach(cb => cb.checked = master.checked);
+        updateBulkBar();
+    }
+
+    function deselectAll() {
+        const master = document.getElementById('check-all');
+        if (master) master.checked = false;
+        document.querySelectorAll('.order-check').forEach(cb => cb.checked = false);
+        updateBulkBar();
+    }
+
+    function updateBulkBar() {
+        const checked = document.querySelectorAll('.order-check:checked');
+        const bar = document.getElementById('bulk-action-bar');
+        const countSpan = document.getElementById('selected-count');
+        const master = document.getElementById('check-all');
+
+        if (countSpan) countSpan.textContent = checked.length;
+
+        if (checked.length > 0) {
+            bar.classList.remove('hidden');
+        } else {
+            bar.classList.add('hidden');
+            if (master) master.checked = false;
+        }
+    }
+
+    function getSelectedIds() {
+        const checked = document.querySelectorAll('.order-check:checked');
+        const ids = [];
+        checked.forEach(cb => ids.push(cb.value));
+        return ids;
+    }
+
+    function confirmBulkResi() {
+        const ids = getSelectedIds();
+        if (ids.length === 0) {
+            alert('Pilih minimal satu pesanan terlebih dahulu!');
+            return false;
+        }
+        if (!confirm('Terbitkan resi resmi J&T Express otomatis untuk ' + ids.length + ' pesanan terpilih sekarang?')) {
+            return false;
+        }
+        document.getElementById('bulk-resi-ids').value = ids.join(',');
+        return true;
+    }
+
+    function submitBulkPrint() {
+        const ids = getSelectedIds();
+        if (ids.length === 0) {
+            alert('Pilih minimal satu pesanan terlebih dahulu!');
+            return;
+        }
+        document.getElementById('bulk-print-ids').value = ids.join(',');
+        document.getElementById('form-bulk-print').submit();
+    }
 </script>
 @endsection
