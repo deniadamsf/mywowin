@@ -47,6 +47,48 @@ class IndonesiaRegions {
     'Papua Barat Daya',
   ];
 
+  /// Pemetaan Nama Provinsi ke ID Resmi Kemendagri / API Wilayah
+  static const Map<String, String> provinceIds = {
+    'Aceh': '11',
+    'Sumatera Utara': '12',
+    'Sumatera Barat': '13',
+    'Riau': '14',
+    'Jambi': '15',
+    'Sumatera Selatan': '16',
+    'Bengkulu': '17',
+    'Lampung': '18',
+    'Kepulauan Bangka Belitung': '19',
+    'Kepulauan Riau': '21',
+    'DKI Jakarta': '31',
+    'Jawa Barat': '32',
+    'Jawa Tengah': '33',
+    'D.I. Yogyakarta': '34',
+    'Jawa Timur': '35',
+    'Banten': '36',
+    'Bali': '51',
+    'Nusa Tenggara Barat': '52',
+    'Nusa Tenggara Timur': '53',
+    'Kalimantan Barat': '61',
+    'Kalimantan Tengah': '62',
+    'Kalimantan Selatan': '63',
+    'Kalimantan Timur': '64',
+    'Kalimantan Utara': '65',
+    'Sulawesi Utara': '71',
+    'Sulawesi Tengah': '72',
+    'Sulawesi Selatan': '73',
+    'Sulawesi Tenggara': '74',
+    'Gorontalo': '75',
+    'Sulawesi Barat': '76',
+    'Maluku': '81',
+    'Maluku Utara': '82',
+    'Papua Barat': '91',
+    'Papua': '94',
+    'Papua Selatan': '94',
+    'Papua Tengah': '94',
+    'Papua Pegunungan': '94',
+    'Papua Barat Daya': '91',
+  };
+
   /// Pemetaan Provinsi ke Daftar Kabupaten dan Kota Lengkap
   static const Map<String, List<String>> citiesByProvince = {
     'Jawa Timur': [
@@ -420,4 +462,39 @@ class IndonesiaRegions {
     final p = province.toLowerCase();
     return p.contains('jawa') || p.contains('jakarta') || p.contains('banten') || p.contains('yogyakarta') || p.contains('jogja') || p.contains('diy');
   }
+
+  /// Format nama wilayah (mengubah ALL CAPS menjadi format resmi dan rapi)
+  static String formatRegionName(String name) {
+    if (name.isEmpty) return name;
+    final trimmed = name.trim();
+    final upper = trimmed.toUpperCase();
+    if (upper.startsWith('KABUPATEN ')) {
+      return 'Kab. ${toTitleCase(trimmed.substring(10))}';
+    }
+    if (upper.startsWith('KOTA ')) {
+      return 'Kota ${toTitleCase(trimmed.substring(5))}';
+    }
+    if (upper.startsWith('KECAMATAN ')) {
+      return 'Kec. ${toTitleCase(trimmed.substring(10))}';
+    }
+    if (upper.startsWith('DESA ')) {
+      return 'Desa ${toTitleCase(trimmed.substring(5))}';
+    }
+    if (upper.startsWith('KELURAHAN ')) {
+      return 'Kel. ${toTitleCase(trimmed.substring(10))}';
+    }
+    return toTitleCase(trimmed);
+  }
+
+  /// Helper untuk mengubah teks ke Title Case
+  static String toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      final upper = word.toUpperCase();
+      if (['DKI', 'DIY', 'DI', 'RT', 'RW'].contains(upper)) return upper;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
 }
+

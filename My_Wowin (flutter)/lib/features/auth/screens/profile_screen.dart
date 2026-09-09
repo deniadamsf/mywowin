@@ -11,6 +11,7 @@ import 'reward_screen.dart';
 import 'edit_profile_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../order/screens/history_screen.dart';
+import '../../../core/widgets/address_picker_bottom_sheet.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -112,6 +113,58 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted && _isLoading) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  // --- FUNGSI UPDATE ALAMAT BERJENJANG DARI PROFIL ---
+  Future<void> _updateAddressWithPicker() async {
+    final currentAddress = (_userData?['alamat'] ?? '').toString();
+    final result = await AddressPickerBottomSheet.show(
+      context,
+      initialAddress: currentAddress,
+      showSaveToProfileCheckbox: false,
+    );
+
+    if (result == null || result.fullAddress.trim().isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      if (token == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/profile/update'));
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept'] = 'application/json';
+      request.fields['alamat'] = result.fullAddress;
+
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Alamat berjenjang berhasil disimpan ke profil!'),
+            backgroundColor: primaryGreen,
+          ),
+        );
+        _fetchProfile();
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal memperbarui alamat di server.'), backgroundColor: Colors.red),
+        );
+        setState(() => _isLoading = false);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Terjadi kesalahan jaringan.'), backgroundColor: Colors.red),
+      );
+      setState(() => _isLoading = false);
     }
   }
 
@@ -924,7 +977,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     _buildInfoRow(Icons.storefront, 'Nama Toko', namaToko),
                     _buildInfoRow(Icons.badge_outlined, 'Nama Sales', namaSales),
                     _buildInfoRow(Icons.phone_outlined, 'Nomor Telepon', noHp),
-                    _buildInfoRow(Icons.location_on_outlined, 'Alamat', alamat),
+                    _buildInfoRow(
+                      Icons.location_on_outlined,
+                      'Alamat Pengiriman (Berjenjang)',
+                      alamat,
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: primaryGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: primaryGreen.withValues(alpha: 0.3)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.edit_location_alt_rounded, size: 14, color: primaryGreen),
+                            SizedBox(width: 4),
+                            Text('Ubah', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryGreen)),
+                          ],
+                        ),
+                      ),
+                      onTap: _updateAddressWithPicker,
+                    ),
                   ],
                 ),
               ),
@@ -1234,6 +1308,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     child: Column(
                       children: [
+                        _buildGroupedMenu(context, Icons.location_on_outlined, 'Alamat Pengiriman (Berjenjang)', () {
+                          _updateAddressWithPicker();
+                        }),
+                        Divider(height: 1, thickness: 1, color: Colors.grey[100], indent: 56),
                         _buildGroupedMenu(context, Icons.shopping_bag_outlined, 'Pesanan Saya', () {
                           // Buka layar riwayat pesanan
                           Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
@@ -1402,7 +1480,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildInfoRow(IconData icon, String label, String value, {Widget? trailing, VoidCallback? onTap}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -1410,15 +1488,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[500])),
           const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[200]!)),
-            child: Row(
-              children: [
-                Icon(icon, color: primaryGreen, size: 20),
-                const SizedBox(width: 12),
-                Expanded(child: Text(value, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500, fontSize: 14))),
-              ],
+          InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[200]!)),
+              child: Row(
+                children: [
+                  Icon(icon, color: primaryGreen, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(value, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500, fontSize: 14))),
+                  if (trailing != null) ...[
+                    const SizedBox(width: 8),
+                    trailing,
+                  ],
+                ],
+              ),
             ),
           )
         ],

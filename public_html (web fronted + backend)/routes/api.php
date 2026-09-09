@@ -29,6 +29,13 @@ Route::get('/products/{id}/reviews', [\App\Http\Controllers\Api\ReviewController
 Route::get('/payment-methods', [\App\Http\Controllers\Api\PaymentMethodApiController::class, 'index']);
 Route::get('/shipping-voucher', [\App\Http\Controllers\Api\PaymentMethodApiController::class, 'getShippingVoucher']);
 
+// Rute Master Wilayah Administratif Berjenjang
+Route::get('/regions/provinces', [\App\Http\Controllers\Api\RegionController::class, 'provinces']);
+Route::get('/regions/regencies/{provinceId}', [\App\Http\Controllers\Api\RegionController::class, 'regencies']);
+Route::get('/regions/districts/{regencyId}', [\App\Http\Controllers\Api\RegionController::class, 'districts']);
+Route::get('/regions/villages/{districtId}', [\App\Http\Controllers\Api\RegionController::class, 'villages']);
+
+
 // --- RUTE TERPROTEKSI ---
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rewards/claim', [\App\Http\Controllers\Api\RewardController::class, 'claim']);

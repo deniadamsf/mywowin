@@ -228,7 +228,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   },
                   icon: const Icon(Icons.edit_location_alt_rounded, size: 16, color: primaryGreen),
                   label: const Text(
-                    'Pilih Alamat Berjenjang (Provinsi & Kota)',
+                    'Pilih Alamat Berjenjang (Provinsi, Kota, Kec, Desa)',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryGreen),
                   ),
                 ),
