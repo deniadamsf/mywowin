@@ -307,7 +307,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   const SizedBox(height: 12),
                   _buildSpecRow('Isi per Karton', '${product['isi_karton'] ?? '-'} pcs'),
                   const Divider(height: 18),
-                  _buildSpecRow('Volume / Berat', '${product['isi_ml'] ?? '-'} / ${product['berat'] ?? '-'}'),
+                  _buildSpecRow(
+                    'Volume / Berat',
+                    '${product['isi_ml'] != null ? '${product['isi_ml']} ml' : '-'} / ${product['berat'] != null && double.tryParse(product['berat'].toString()) != null && double.parse(product['berat'].toString()) > 0 ? '${double.parse(product['berat'].toString()).toInt()} gr' : '-'}',
+                  ),
                   const Divider(height: 18),
                   _buildSpecRow('No. BPOM', product['no_bpom'] ?? '-'),
                   const Divider(height: 18),

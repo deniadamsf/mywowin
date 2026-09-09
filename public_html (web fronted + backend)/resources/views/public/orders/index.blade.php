@@ -183,9 +183,27 @@
 
                     @php
                         $userPoints = Auth::user()->total_points ?? 0;
-                        $initialTotal = $subtotal - $discountData['discountAmount'];
+                        $shipping = $shippingCost ?? 0;
+                        $shippingDisc = $shippingDiscount ?? 0;
+                        $netShipping = $netShippingCost ?? ($shipping - $shippingDisc);
+                        $initialTotal = ($subtotal - $discountData['discountAmount']) + $netShipping;
                         $maxPointDiscount = min($userPoints, $initialTotal);
                     @endphp
+
+                    @if($shippingDisc > 0)
+                    <!-- Voucher Diskon Ongkir Aktif Banner -->
+                    <div class="mb-4 bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-green-700">
+                                <i class="fas fa-ticket-alt text-xs"></i>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-green-900 block">{{ $shippingCalculation['voucher_name'] ?? 'Voucher Diskon Ongkir' }}</span>
+                                <span class="text-xs text-green-700">Diskon Rp {{ number_format($shippingDisc, 0, ',', '.') }} otomatis diterapkan pada ongkir J&T Express</span>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
 
                     @if($userPoints > 0)
                     <!-- Poin Loyalitas Section -->
@@ -221,10 +239,22 @@
                             <span>Potongan Poin</span>
                             <span>- Rp <span id="pointDiscountDisplay">{{ number_format($maxPointDiscount, 0, ',', '.') }}</span></span>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Ongkos Kirim</span>
-                            <span class="text-gray-800">Rp 0</span>
+                        <div class="flex justify-between items-center text-sm">
+                            <div>
+                                <span class="text-gray-600 block">Ongkos Kirim (J&T Express EZ)</span>
+                                <span class="text-xs text-gray-400 font-normal">{{ $totalWeightKg ?? 1.0 }} Kg &bull; {{ $shippingCalculation['description'] ?? 'Tarif Flat VIP J&T' }}</span>
+                            </div>
+                            <span class="text-gray-800 font-medium {{ $shippingDisc > 0 ? 'line-through text-gray-400' : '' }}">Rp {{ number_format($shipping, 0, ',', '.') }}</span>
                         </div>
+                        @if($shippingDisc > 0)
+                        <div class="flex justify-between items-center text-sm text-green-700 font-medium">
+                            <div class="flex items-center gap-1.5">
+                                <i class="fas fa-ticket-alt text-xs"></i>
+                                <span>Diskon Ongkir ({{ $shippingCalculation['voucher_code'] ?? 'Voucher' }})</span>
+                            </div>
+                            <span>- Rp {{ number_format($shippingDisc, 0, ',', '.') }}</span>
+                        </div>
+                        @endif
                        <div class="flex justify-between font-semibold pt-3 border-t border-gray-200">
                             <span class="text-gray-800">Total Belanja</span>
                             
@@ -240,20 +270,23 @@
                     <h2 class="text-lg font-semibold text-white mb-3">Pilih Metode Pembayaran</h2>
 
                     <div class="space-y-3">
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="metode_pembayaran" value="wa" class="form-radio text-blue-600">
-                            <span class="text-white">WhatsApp (WA)</span>
-                        </label>
-
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="metode_pembayaran" value="cod" class="form-radio text-blue-600">
-                            <span class="text-white">Cash on Delivery (COD)</span>
-                        </label>
-
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="metode_pembayaran" value="transfer" class="form-radio text-blue-600">
-                            <span class="text-white">Transfer Bank</span>
-                        </label>
+                        @if(isset($activePaymentMethods) && $activePaymentMethods->isNotEmpty())
+                            @foreach($activePaymentMethods as $pm)
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="radio" name="metode_pembayaran" value="{{ $pm->code }}" class="form-radio text-blue-600" {{ $loop->first ? 'checked' : '' }}>
+                                    <span class="text-white">{{ $pm->name }}</span>
+                                </label>
+                            @endforeach
+                        @else
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="metode_pembayaran" value="transfer" class="form-radio text-blue-600" checked>
+                                <span class="text-white">Transfer Bank (BCA / BRI)</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="metode_pembayaran" value="wa" class="form-radio text-blue-600">
+                                <span class="text-white">Pesan via WhatsApp (WA)</span>
+                            </label>
+                        @endif
                     </div>
 
                     <!-- Error Message Alert -->

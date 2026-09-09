@@ -88,11 +88,18 @@ class OrderController extends Controller
 
 
         $discountData = $this->getDiscountData($membership, $cartItems, $subtotal);
-        $total = $discountData['finalTotal']; // <-- PERBAIKAN: Set $total ke finalTotal
+        $total = $discountData['finalTotal'];
+
+        // Hitung estimasi berat pesanan (Kg) sesuai acuan timbangan fisik & J&T
+        $totalWeightKg = \App\Services\JntService::calculateCartWeight($cartItems);
+        $shippingCalculation = \App\Services\JntService::calculateShippingCost($totalWeightKg, $membership->alamat ?? '-', $subtotal);
+        $shippingCost = (float) ($shippingCalculation['shipping_cost'] ?? 0);
+        $shippingDiscount = (float) ($shippingCalculation['shipping_discount'] ?? 0);
+        $netShippingCost = (float) ($shippingCalculation['net_shipping_cost'] ?? $shippingCost);
+        $total = $discountData['finalTotal'] + $netShippingCost;
 
         $orderNumber = $this->generateOrderNumber();
-
-       
+        $activePaymentMethods = \App\Models\PaymentMethod::where('is_active', true)->orderBy('sort_order')->get();
     
         return view('public.orders.index', compact(
             'user',
@@ -102,6 +109,12 @@ class OrderController extends Controller
             'total',
             'orderNumber',
             'discountData',
+            'totalWeightKg',
+            'shippingCost',
+            'shippingDiscount',
+            'netShippingCost',
+            'shippingCalculation',
+            'activePaymentMethods',
         ));
     }
     
@@ -115,9 +128,16 @@ class OrderController extends Controller
 
     public function store(Request $request)
     {
+        $activePaymentCodes = \App\Models\PaymentMethod::getActiveCodes();
+        if (empty($activePaymentCodes)) {
+            $activePaymentCodes = ['wa', 'transfer'];
+        }
+
         $request->validate([
-            'metode_pembayaran' => 'required|in:wa,cod,transfer',
+            'metode_pembayaran' => ['required', 'string', \Illuminate\Validation\Rule::in($activePaymentCodes)],
             'catatan' => 'nullable|string',
+        ], [
+            'metode_pembayaran.in' => 'Metode pembayaran yang dipilih sedang dinonaktifkan oleh Admin.',
         ]);
     
         $user = Auth::user();
@@ -146,10 +166,7 @@ class OrderController extends Controller
           $cartItems = Cart::with(['product', 'bundling.products'])
             ->where('user_id', $user->id)
             ->get();
-
-
         
-    
             if ($cartItems->isEmpty()) {
                 return redirect()->back()->with('error', 'Keranjang Anda kosong.');
             }
@@ -163,25 +180,30 @@ class OrderController extends Controller
     return 0;
 });
 
-
-
         }
     
         // Buat nomor pesanan dan hitung diskon
         $discountData = $this->getDiscountData($membership, $cartItems, $subtotal);
         $totalAfterDiscount = $discountData['finalTotal'];
 
+        // Hitung estimasi berat pesanan (Kg) sesuai acuan timbangan fisik & J&T
+        $totalWeightKg = \App\Services\JntService::calculateCartWeight($cartItems);
+        $shippingCalculation = \App\Services\JntService::calculateShippingCost($totalWeightKg, $membership->alamat ?? '-', $subtotal);
+        $shippingCost = (float) ($shippingCalculation['shipping_cost'] ?? 0);
+        $shippingDiscount = (float) ($shippingCalculation['shipping_discount'] ?? 0);
+        $netShippingCost = (float) ($shippingCalculation['net_shipping_cost'] ?? $shippingCost);
+        $voucherCode = $shippingCalculation['voucher_code'] ?? null;
+
         // Hitung potongan poin loyalitas (1 Poin = Rp 1)
         $pointsUsed = 0;
         $potonganPoin = 0;
+        $totalBeforePoints = $totalAfterDiscount + $netShippingCost;
         if ($request->has('use_points') && ($user->total_points ?? 0) > 0) {
-            $pointsUsed = min((int)$user->total_points, (int)floor($totalAfterDiscount));
+            $pointsUsed = min((int)$user->total_points, (int)floor($totalBeforePoints));
             $potonganPoin = (float)$pointsUsed;
-            $total = max(0, $totalAfterDiscount - $potonganPoin);
             $user->decrement('total_points', $pointsUsed);
-        } else {
-            $total = $totalAfterDiscount;
         }
+        $total = max(0, $totalBeforePoints - $potonganPoin);
 
         $invoiceNumber = 'INV-' . strtoupper(uniqid());
         $paymentMethod = $request->input('metode_pembayaran');
@@ -194,11 +216,17 @@ class OrderController extends Controller
             'total' => $total,
             'points_used' => $pointsUsed,
             'potongan_poin' => $potonganPoin,
+            'shipping_courier' => 'J&T Express (EZ)',
+            'total_weight_kg' => $totalWeightKg,
+            'shipping_cost' => $shippingCost,
+            'shipping_discount' => $shippingDiscount,
+            'voucher_code' => $voucherCode,
+            'shipping_status' => 'Menunggu Diproses',
             'status' => 'pending',
             'bukti_transfer' => null,
             'payment_method' => $paymentMethod,
             'payment_status' => 'pending',
-            'alamat' => $membership->alamat,
+            'alamat' => $membership->alamat ?? '-',
             'catatan' => $request->input('catatan'),
             'paid_amount' => $total,
             'paid_at' => null,

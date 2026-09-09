@@ -318,6 +318,18 @@
                 </a>
             </li>
 
+            <!-- Metode Pembayaran -->
+            <li>
+                <a href="{{ route('admin.payment_methods.index') }}"
+                class="flex items-center gap-3 px-6 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-r-full transition-all duration-200 
+                {{ request()->is('admin/payment-methods*') ? 'bg-green-50 text-green-600 font-medium border-l-4 border-green-500' : '' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                    </svg>
+                    <span>Metode Pembayaran</span>
+                </a>
+            </li>
+
             {{-- Pengaturan --}}
             <li>
                 <a href="{{ route('admin.settings.index') }}"

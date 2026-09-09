@@ -244,6 +244,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'is_admin'])->group(
     Route::get('orders/export-pdf', [AdminOrderController::class, 'exportPdf'])->name('orders.exportPdf');
     Route::get('orders/{order}/print-invoice', [AdminOrderController::class, 'printInvoice'])->name('orders.print-invoice');
     Route::get('orders/export-excel', [AdminOrderController::class, 'exportExcel'])->name('orders.exportExcel');
+    Route::post('orders/{id}/jnt-generate', [AdminOrderController::class, 'generateJntAwb'])->name('orders.jnt-generate');
+    Route::post('orders/{id}/jnt-cancel', [AdminOrderController::class, 'cancelJntAwb'])->name('orders.jnt-cancel');
+    Route::get('orders/{id}/jnt-label', [AdminOrderController::class, 'printShippingLabel'])->name('orders.jnt-label');
 
     //settings
     Route::resource('settings', AdminSettingsController::class);
@@ -266,6 +269,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'is_admin'])->group(
     // Kelola Ulasan Cabang
     Route::get('/reviews', [\App\Http\Controllers\Admin\AdminReviewController::class, 'index'])->name('reviews.index');
     Route::post('/reviews/{id}/reply', [\App\Http\Controllers\Admin\AdminReviewController::class, 'reply'])->name('reviews.reply');
+
+    // Kelola Metode Pembayaran Modular
+    Route::get('/payment-methods', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'index'])->name('payment_methods.index');
+    Route::post('/payment-methods/toggle', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'toggle'])->name('payment_methods.toggle');
+    Route::post('/payment-methods/update-wa', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'updateWa'])->name('payment_methods.update_wa');
+    Route::post('/payment-methods/bank-accounts/add', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'addBankAccount'])->name('payment_methods.bank_accounts.add');
+    Route::post('/payment-methods/bank-accounts/{id}/toggle', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'toggleBankAccount'])->name('payment_methods.bank_accounts.toggle');
+    Route::post('/payment-methods/bank-accounts/{id}/delete', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'deleteBankAccount'])->name('payment_methods.bank_accounts.delete');
+    Route::post('/payment-methods/shipping-voucher/update', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'updateShippingVoucher'])->name('payment_methods.shipping_voucher.update');
+    Route::post('/payment-methods/shipping-voucher/toggle', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'toggleShippingVoucher'])->name('payment_methods.shipping_voucher.toggle');
 });
 
 
@@ -321,6 +334,9 @@ Route::delete('/superadmin/artikels/{artikel}/hapus-foto', [SuperArtikelControll
     Route::get('superadmin/orders/export-pdf', [SuperOrderController::class, 'exportPdf'])->name('orders.exportPdf');
     Route::get('superadmin/orders/{order}/print-invoice', [SuperOrderController::class, 'printInvoice'])->name('orders.print-invoice');
     Route::get('superadmin/orders/export-excel', [SuperOrderController::class, 'exportExcel'])->name('orders.exportExcel');
+    Route::post('superadmin/orders/{id}/jnt-generate', [SuperOrderController::class, 'generateJntAwb'])->name('orders.jnt-generate');
+    Route::post('superadmin/orders/{id}/jnt-cancel', [SuperOrderController::class, 'cancelJntAwb'])->name('orders.jnt-cancel');
+    Route::get('superadmin/orders/{id}/jnt-label', [SuperOrderController::class, 'printShippingLabel'])->name('orders.jnt-label');
     
     // BENAR (Hapus duplikasi)
     Route::get('/users/{user}/upgrade', [SuperUsersController::class, 'showUpgradeForm'])->name('users.upgrade.form');
@@ -333,6 +349,16 @@ Route::delete('/superadmin/artikels/{artikel}/hapus-foto', [SuperArtikelControll
     Route::get('/reviews', [\App\Http\Controllers\Superadmin\SuperReviewController::class, 'index'])->name('reviews.index');
     Route::post('/reviews/{id}/reply', [\App\Http\Controllers\Superadmin\SuperReviewController::class, 'reply'])->name('reviews.reply');
     Route::patch('/reviews/{id}/toggle-visibility', [\App\Http\Controllers\Superadmin\SuperReviewController::class, 'toggleVisibility'])->name('reviews.toggle-visibility');
+
+    // Kelola Metode Pembayaran Modular (Super Admin)
+    Route::get('/payment-methods', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'index'])->name('payment_methods.index');
+    Route::post('/payment-methods/toggle', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'toggle'])->name('payment_methods.toggle');
+    Route::post('/payment-methods/update-wa', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'updateWa'])->name('payment_methods.update_wa');
+    Route::post('/payment-methods/bank-accounts/add', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'addBankAccount'])->name('payment_methods.bank_accounts.add');
+    Route::post('/payment-methods/bank-accounts/{id}/toggle', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'toggleBankAccount'])->name('payment_methods.bank_accounts.toggle');
+    Route::post('/payment-methods/bank-accounts/{id}/delete', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'deleteBankAccount'])->name('payment_methods.bank_accounts.delete');
+    Route::post('/payment-methods/shipping-voucher/update', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'updateShippingVoucher'])->name('payment_methods.shipping_voucher.update');
+    Route::post('/payment-methods/shipping-voucher/toggle', [\App\Http\Controllers\Admin\PaymentMethodController::class, 'toggleShippingVoucher'])->name('payment_methods.shipping_voucher.toggle');
 });
 
 // =========================================================================

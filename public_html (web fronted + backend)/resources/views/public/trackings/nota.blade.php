@@ -55,6 +55,17 @@
                 <p><span class="font-medium">Nama Toko:</span> {{ $order->user->membership->nama_toko ?? '-' }}</p>
                 <p><span class="font-medium">No. HP:</span> {{ $order->user->membership->no_hp ?? '-' }}</p>
                 <p><span class="font-medium">Alamat:</span> {{ $order->alamat }}</p>
+                @if(!empty($order->no_resi))
+                <div class="mt-2.5 p-2.5 bg-red-50 border border-red-200 rounded-lg flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <span class="font-bold text-red-700 text-xs flex items-center gap-1.5"><i class="fas fa-truck"></i> Kurir: J&T Express (EZ)</span>
+                        <div class="text-xs text-gray-800 mt-0.5">No. Resi: <strong class="select-all text-red-800">{{ $order->no_resi }}</strong> {{ !empty($order->jnt_des_code) ? '('.$order->jnt_des_code.')' : '' }}</div>
+                    </div>
+                    <a href="{{ \App\Services\JntService::getTrackingUrl($order->no_resi) }}" target="_blank" class="px-2.5 py-1 bg-red-600 text-white text-xs font-bold rounded-md hover:bg-red-700 transition flex items-center gap-1">
+                        Lacak Paket &rarr;
+                    </a>
+                </div>
+                @endif
             </div>
 
             <!-- Tabel Produk -->

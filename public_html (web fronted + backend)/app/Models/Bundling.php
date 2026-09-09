@@ -22,7 +22,7 @@ class Bundling extends Model
         'snk',
         'price',
         'price_before',
-        
+        'berat',
     ];
 
     // Relasi ke tabel Users (satu bundling dimiliki oleh satu user)

@@ -14,7 +14,7 @@ class CartController extends Controller
     public function index()
     {
         $carts = Cart::where('user_id', Auth::id())
-            ->with(['product.images', 'bundling']) // Wajib tambah 'bundling' agar API mengirimkan datanya
+            ->with(['product.images', 'bundling.products']) // Eager load produk bundling agar berat dapat dihitung akurat
             ->get();
 
         // Hitung Subtotal Keseluruhan

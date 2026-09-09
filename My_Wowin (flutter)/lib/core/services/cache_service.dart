@@ -206,8 +206,59 @@ class CacheService {
       await prefs.remove(_keyCartSubtotal);
       await prefs.remove(_keyUserProfile);
       await prefs.remove(_keyLastSync);
+      await prefs.remove(_keyPaymentMethods);
     } catch (e) {
       debugPrint('Error CacheService clearAllCache: $e');
     }
+  }
+
+  // ===========================================================================
+  // 6. METODE PEMBAYARAN & VOUCHER ONGKIR MODULAR
+  // ===========================================================================
+  static const String _keyPaymentMethods = 'offline_cache_payment_methods';
+  static const String _keyShippingVoucher = 'offline_cache_shipping_voucher';
+
+  static Future<void> savePaymentMethods(List<dynamic> methods) async {
+    try {
+      final prefs = await _getPrefs();
+      await prefs.setString(_keyPaymentMethods, json.encode(methods));
+    } catch (e) {
+      debugPrint('Error CacheService savePaymentMethods: $e');
+    }
+  }
+
+  static Future<List<dynamic>?> getPaymentMethods() async {
+    try {
+      final prefs = await _getPrefs();
+      final String? jsonString = prefs.getString(_keyPaymentMethods);
+      if (jsonString != null && jsonString.isNotEmpty) {
+        return json.decode(jsonString) as List<dynamic>;
+      }
+    } catch (e) {
+      debugPrint('Error CacheService getPaymentMethods: $e');
+    }
+    return null;
+  }
+
+  static Future<void> saveShippingVoucher(Map<String, dynamic> voucher) async {
+    try {
+      final prefs = await _getPrefs();
+      await prefs.setString(_keyShippingVoucher, json.encode(voucher));
+    } catch (e) {
+      debugPrint('Error CacheService saveShippingVoucher: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getShippingVoucher() async {
+    try {
+      final prefs = await _getPrefs();
+      final String? jsonString = prefs.getString(_keyShippingVoucher);
+      if (jsonString != null && jsonString.isNotEmpty) {
+        return json.decode(jsonString) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint('Error CacheService getShippingVoucher: $e');
+    }
+    return null;
   }
 }

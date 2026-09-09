@@ -14,6 +14,8 @@ import '../../../core/widgets/wowin_cached_image.dart';
 import '../../../core/widgets/offline_indicator.dart';
 import '../../order/screens/history_screen.dart';
 import '../../order/screens/order_detail_screen.dart';
+import '../models/payment_method_model.dart';
+import '../../../core/widgets/address_picker_bottom_sheet.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -33,6 +35,47 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isProcessingCheckout = false;
   int _userPoints = 0;
   Map<String, dynamic>? _userProfile;
+  List<PaymentMethodModel> _paymentMethods = [
+    PaymentMethodModel(
+      code: 'transfer',
+      name: 'Transfer Bank (BCA / BRI)',
+      description: 'Instruksi rekening resmi muncul setelah konfirmasi',
+      isActive: true,
+      bankAccounts: [
+        BankAccountModel(
+          id: '1',
+          bankName: 'Bank BCA',
+          accountNumber: '0891234567',
+          accountHolder: 'PT WOWIN PURNOMO PUTERA',
+          isActive: true,
+        ),
+        BankAccountModel(
+          id: '2',
+          bankName: 'Bank BRI',
+          accountNumber: '0123-01-000456-53-0',
+          accountHolder: 'PT SANKE BERSINAR TERANG',
+          isActive: true,
+        ),
+      ],
+    ),
+    PaymentMethodModel(
+      code: 'wa',
+      name: 'Pesan via WhatsApp',
+      description: 'Langsung terhubung dengan Admin Wowin',
+      isActive: true,
+      phoneNumber: '6281216301220',
+    ),
+  ];
+
+  ShippingVoucherModel _shippingVoucher = ShippingVoucherModel(
+    code: 'ONGKIR4500',
+    name: 'Voucher Diskon Ongkir Rp 4.500',
+    description: 'Min. belanja Rp 10.000 (Maksimal diskon Rp 4.500)',
+    minPurchase: 10000.0,
+    discountAmount: 4500.0,
+    baseRatePerKg: 4500.0,
+    isActive: true,
+  );
 
   @override
   void initState() {
@@ -40,7 +83,55 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     Future.microtask(() {
       ref.read(cartProvider.notifier).fetchCart();
       _fetchUserProfile();
+      _fetchPaymentMethods();
     });
+  }
+
+  Future<void> _fetchPaymentMethods() async {
+    final cached = await CacheService.getPaymentMethods();
+    if (cached != null && cached.isNotEmpty && mounted) {
+      setState(() {
+        _paymentMethods = cached.map((e) => PaymentMethodModel.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+      });
+    }
+
+    final cachedVoucher = await CacheService.getShippingVoucher();
+    if (cachedVoucher != null && mounted) {
+      setState(() {
+        _shippingVoucher = ShippingVoucherModel.fromJson(cachedVoucher);
+      });
+    }
+
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/payment-methods'),
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 6));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        if (data['success'] == true && data['data'] != null && data['data'] is List) {
+          final List<dynamic> list = data['data'];
+          await CacheService.savePaymentMethods(list);
+          if (mounted) {
+            setState(() {
+              _paymentMethods = list.map((e) => PaymentMethodModel.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+            });
+          }
+        }
+        if (data['shipping_voucher'] != null && data['shipping_voucher'] is Map) {
+          final Map<String, dynamic> vMap = Map<String, dynamic>.from(data['shipping_voucher']);
+          await CacheService.saveShippingVoucher(vMap);
+          if (mounted) {
+            setState(() {
+              _shippingVoucher = ShippingVoucherModel.fromJson(vMap);
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetchPaymentMethods: $e');
+    }
   }
 
   Future<void> _fetchUserProfile() async {
@@ -77,9 +168,147 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     } catch (_) {}
   }
 
+  // --- HITUNG ESTIMASI BERAT & ONGKIR J&T EXPRESS ---
+  double _calculateTotalWeight(List<dynamic> items) {
+    double totalGram = 0.0;
+    for (final item in items) {
+      if (item is! Map) continue;
+      final int qty = int.tryParse(item['quantity']?.toString() ?? item['qty']?.toString() ?? '1') ?? 1;
+      final product = item['product'];
+      final bundling = item['bundling'];
+      final String unit = (item['unit']?.toString() ?? '').toLowerCase();
+
+      if (product is Map) {
+        final bool isKarton = unit == 'karton' || (item['product_name']?.toString().toLowerCase().contains('karton') ?? false);
+        
+        // Bobot kotor riil per botol/pcs dalam satuan Gram (dari database / Excel)
+        double beratGram = double.tryParse(product['berat']?.toString() ?? '') ?? 0.0;
+
+        // Fallback formula jika data berat di database belum terisi:
+        if (beratGram <= 0) {
+          final double isiMl = double.tryParse(product['isi_ml']?.toString() ?? '') ?? 0.0;
+          if (isiMl >= 5000) {
+            beratGram = (isiMl * 1.15).roundToDouble();
+          } else if (isiMl > 0) {
+            beratGram = (isiMl * 1.2).roundToDouble();
+            if (beratGram < 200.0) beratGram = 200.0;
+          } else {
+            beratGram = 500.0;
+          }
+        }
+
+        if (isKarton) {
+          final int isiKarton = int.tryParse(product['isi_karton']?.toString() ?? '') ?? 12;
+          totalGram += (beratGram * isiKarton) * qty;
+        } else {
+          totalGram += beratGram * qty;
+        }
+      } else if (bundling is Map) {
+        double bundlingBeratGram = double.tryParse(bundling['berat']?.toString() ?? '') ?? 0.0;
+        if (bundlingBeratGram <= 0) {
+          if (bundling['products'] is List && (bundling['products'] as List).isNotEmpty) {
+            double sumP = 0.0;
+            for (final p in bundling['products']) {
+              if (p is Map) {
+                double pBerat = double.tryParse(p['berat']?.toString() ?? '') ?? 0.0;
+                if (pBerat <= 0) {
+                  final double pMl = double.tryParse(p['isi_ml']?.toString() ?? '') ?? 0.0;
+                  pBerat = pMl > 0 ? (pMl * 1.2).roundToDouble() : 500.0;
+                }
+                sumP += pBerat;
+              }
+            }
+            bundlingBeratGram = sumP > 0 ? sumP : 1000.0;
+          } else {
+            bundlingBeratGram = 1000.0;
+          }
+        }
+        totalGram += bundlingBeratGram * qty;
+      } else {
+        totalGram += 500.0 * qty;
+      }
+    }
+    final double totalKg = totalGram / 1000.0;
+    // J&T Express menerapkan minimal hitungan 1.0 Kg
+    return totalKg < 1.0 ? 1.0 : double.parse(totalKg.toStringAsFixed(2));
+  }
+
+  bool _isJatimDanMadura(String alamat) {
+    final lower = alamat.toLowerCase();
+    const jatimKeywords = [
+      'jawa timur', 'jawatimur', 'jatim', 'madura',
+      'bangkalan', 'sampang', 'pamekasan', 'sumenep',
+      'surabaya', 'sby', 'sidoarjo', 'sda', 'gresik', 'mojokerto', 'jombang',
+      'lamongan', 'tuban', 'bojonegoro', 'madiun', 'magetan',
+      'ngawi', 'ponorogo', 'pacitan', 'kediri', 'nganjuk',
+      'blitar', 'tulungagung', 'trenggalek', 'malang', 'mlg', 'batu',
+      'pasuruan', 'probolinggo', 'lumajang', 'jember', 'bondowoso',
+      'situbondo', 'banyuwangi', 'bwi'
+    ];
+    for (final kw in jatimKeywords) {
+      if (lower.contains(kw)) return true;
+    }
+    if (lower.isEmpty || lower == '-') return true; // Default basis operasional Wowin (Jatim)
+    return false;
+  }
+
+  bool _isPulauJawa(String alamat) {
+    if (_isJatimDanMadura(alamat)) return true;
+    final lower = alamat.toLowerCase();
+    const javaKeywords = [
+      'jawa tengah', 'jawatengah', 'jateng', 'jawa barat', 'jawabarat', 'jabar',
+      'dki jakarta', 'jakarta', 'jaksel', 'jakbar', 'jaktim', 'jakpus', 'jakut',
+      'banten', 'yogyakarta', 'jogja', 'diy',
+      'semarang', 'smg', 'solo', 'surakarta', 'slo', 'kudus', 'pati', 'jepara', 'demak', 'salatiga', 'magelang', 'klaten',
+      'boyolali', 'sukoharjo', 'karanganyar', 'wonogiri', 'sragen', 'purwodadi', 'grobogan', 'rembang', 'blora',
+      'kendal', 'batang', 'pekalongan', 'pemalang', 'tegal', 'brebes', 'cilacap', 'banyumas', 'purwokerto',
+      'purbalingga', 'banjarnegara', 'kebumen', 'purworejo', 'wonosobo', 'temanggung',
+      'sleman', 'bantul', 'gunungkidul', 'kulon progo',
+      'bandung', 'bdg', 'cimahi', 'bogor', 'bgr', 'depok', 'bekasi', 'bks', 'cirebon', 'crb', 'sukabumi', 'tasikmalaya',
+      'garut', 'subang', 'purwakarta', 'karawang', 'ciamis', 'kuningan', 'majalengka', 'sumedang',
+      'indramayu', 'cianjur', 'pangandaran', 'serang', 'tangerang', 'tangsel', 'cilegon', 'lebak', 'pandeglang',
+      'cikarang', 'tambun', 'cibinong', 'kartasura', 'ungaran'
+    ];
+    for (final kw in javaKeywords) {
+      if (lower.contains(kw)) return true;
+    }
+    return false;
+  }
+
+  Future<void> _saveAddressToProfile(String newAddress) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      if (token == null) return;
+
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/profile/update'));
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept'] = 'application/json';
+      request.fields['alamat'] = newAddress.trim();
+      await request.send();
+
+      // Refresh profil pengguna
+      _fetchUserProfile();
+    } catch (_) {}
+  }
+
+  double _calculateShippingCost(double weightKg, String alamat) {
+    final int roundedWeight = weightKg.ceil();
+    if (_isJatimDanMadura(alamat)) {
+      final double rate = _shippingVoucher.baseRatePerKg > 0 ? _shippingVoucher.baseRatePerKg : 4500.0;
+      return (roundedWeight * rate).toDouble();
+    } else if (_isPulauJawa(alamat)) {
+      final double rate = _shippingVoucher.rateJawaNonJatim > 0 ? _shippingVoucher.rateJawaNonJatim : 9500.0;
+      return (roundedWeight * rate).toDouble();
+    } else {
+      return (roundedWeight * 25000).toDouble();
+    }
+  }
+
   // --- FUNGSI MEMUNCULKAN JENDELA KONFIRMASI CHECKOUT ---
   void _showCheckoutBottomSheet(BuildContext context, double totalBelanja) {
-    String selectedPayment = 'transfer';
+    final activeMethods = _paymentMethods.where((m) => m.isActive).toList();
+    String selectedPayment = activeMethods.isNotEmpty ? activeMethods.first.code : 'transfer';
     bool usePoints = false;
     final noteController = TextEditingController();
     final cartItems = ref.read(cartProvider).items;
@@ -115,6 +344,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ? membership['level_membership'].toString().toUpperCase()
         : 'BRONZE';
 
+    String currentShippingAddress = alamatPengiriman;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -123,10 +354,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       builder: (BuildContext ctx) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            final double pointDiscount = (usePoints && _userPoints > 0)
-                ? (_userPoints > totalBelanja ? totalBelanja : _userPoints.toDouble())
+            final double totalWeightKg = _calculateTotalWeight(cartItems);
+            final int roundedWeight = totalWeightKg.ceil();
+            final double shippingCost = _calculateShippingCost(totalWeightKg, currentShippingAddress);
+            
+            // Evaluasi Voucher Diskon Ongkir J&T Express
+            final bool isVoucherActive = _shippingVoucher.isActive;
+            final bool isVoucherEligible = isVoucherActive && totalBelanja >= _shippingVoucher.minPurchase;
+            final double shippingDiscount = isVoucherEligible
+                ? (shippingCost >= _shippingVoucher.discountAmount ? _shippingVoucher.discountAmount : shippingCost)
                 : 0.0;
-            final double finalAmount = (totalBelanja - pointDiscount).clamp(0.0, double.infinity);
+            final double netShippingCost = (shippingCost - shippingDiscount).clamp(0.0, double.infinity);
+            final double totalBeforeDiscount = totalBelanja + netShippingCost;
+            final double pointDiscount = (usePoints && _userPoints > 0)
+                ? (_userPoints > totalBeforeDiscount ? totalBeforeDiscount : _userPoints.toDouble())
+                : 0.0;
+            final double finalAmount = (totalBeforeDiscount - pointDiscount).clamp(0.0, double.infinity);
 
             return Container(
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
@@ -164,7 +407,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // --- 1. KARTU ALAMAT PENGIRIMAN PEMBELI ---
+                    // --- 1. KARTU ALAMAT PENGIRIMAN PEMBELI (DENGAN TOMBOL UBAH ALAMAT) ---
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -191,6 +434,42 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: wowinGreen),
                               ),
                               const Spacer(),
+                              // Tombol Ubah / Pilih Alamat Berjenjang
+                              InkWell(
+                                onTap: () async {
+                                  final result = await AddressPickerBottomSheet.show(
+                                    context,
+                                    initialAddress: currentShippingAddress,
+                                    showSaveToProfileCheckbox: true,
+                                  );
+                                  if (result != null) {
+                                    setModalState(() {
+                                      currentShippingAddress = result.fullAddress;
+                                    });
+                                    if (result.saveToProfile) {
+                                      _saveAddressToProfile(result.fullAddress);
+                                    }
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.green.shade300),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.edit_location_alt_rounded, size: 13, color: wowinGreen),
+                                      SizedBox(width: 4),
+                                      Text('Ubah Alamat', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: wowinGreen)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                                 decoration: BoxDecoration(
@@ -217,29 +496,100 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            alamatPengiriman,
+                            currentShippingAddress,
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade800, height: 1.3),
                           ),
-                          if (alamatPengiriman == '-' || alamatPengiriman.isEmpty) ...[
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.orange.shade200),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.warning_amber_rounded, size: 13, color: Colors.orange),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Alamat belum diatur. Silakan lengkapi di profil atau tulis di catatan pesanan.',
-                                      style: TextStyle(fontSize: 10, color: Colors.orange.shade900),
-                                    ),
+                          // Badge Zona Wilayah Pengiriman Aktif
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: _isJatimDanMadura(currentShippingAddress)
+                                      ? Colors.green.shade50
+                                      : (_isPulauJawa(currentShippingAddress) ? Colors.blue.shade50 : Colors.orange.shade50),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _isJatimDanMadura(currentShippingAddress)
+                                        ? Colors.green.shade300
+                                        : (_isPulauJawa(currentShippingAddress) ? Colors.blue.shade300 : Colors.orange.shade300),
                                   ),
-                                ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.local_shipping,
+                                      size: 13,
+                                      color: _isJatimDanMadura(currentShippingAddress)
+                                          ? Colors.green.shade800
+                                          : (_isPulauJawa(currentShippingAddress) ? Colors.blue.shade800 : Colors.orange.shade800),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      _isJatimDanMadura(currentShippingAddress)
+                                          ? 'Jawa Timur & Madura (Tarif Rp 4.500/Kg)'
+                                          : (_isPulauJawa(currentShippingAddress)
+                                              ? 'Pulau Jawa (Tarif Rp 9.500/Kg)'
+                                              : 'Luar Jawa (Tarif Reguler Rp 25.000/Kg)'),
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: _isJatimDanMadura(currentShippingAddress)
+                                            ? Colors.green.shade900
+                                            : (_isPulauJawa(currentShippingAddress) ? Colors.blue.shade900 : Colors.orange.shade900),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Peringatan jika alamat belum diatur atau terdeteksi Luar Jawa
+                          if (currentShippingAddress == '-' || currentShippingAddress.isEmpty || !_isPulauJawa(currentShippingAddress)) ...[
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: () async {
+                                final result = await AddressPickerBottomSheet.show(
+                                  context,
+                                  initialAddress: currentShippingAddress,
+                                  showSaveToProfileCheckbox: true,
+                                );
+                                if (result != null) {
+                                  setModalState(() {
+                                    currentShippingAddress = result.fullAddress;
+                                  });
+                                  if (result.saveToProfile) {
+                                    _saveAddressToProfile(result.fullAddress);
+                                  }
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.amber.shade300),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.info_outline, size: 16, color: Colors.amber.shade900),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        (currentShippingAddress == '-' || currentShippingAddress.isEmpty)
+                                            ? 'Alamat belum diatur. Ketuk di sini untuk memilih Provinsi & Kota Anda.'
+                                            : 'Alamat Anda terdeteksi Luar Jawa. Jika alamat Anda berada di Pulau Jawa, ketuk di sini untuk memilih Provinsi & Kota secara akurat agar mendapatkan tarif VIP Jawara.',
+                                        style: TextStyle(fontSize: 10.5, color: Colors.amber.shade900, fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                    Icon(Icons.chevron_right, size: 16, color: Colors.amber.shade900),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -320,6 +670,92 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       const SizedBox(height: 14),
                     ],
 
+                    // --- KARTU VOUCHER DISKON ONGKIR J&T EXPRESS ---
+                    if (isVoucherActive) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isVoucherEligible ? const Color(0xFFE8F5E9) : const Color(0xFFFFF8E1),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isVoucherEligible ? const Color(0xFFA5D6A7) : const Color(0xFFFFD54F),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isVoucherEligible ? wowinGreen.withValues(alpha: 0.05) : Colors.orange.withValues(alpha: 0.05),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: isVoucherEligible ? wowinGreen.withValues(alpha: 0.12) : const Color(0xFFFFE082),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isVoucherEligible ? Icons.confirmation_num_rounded : Icons.confirmation_num_outlined,
+                                color: isVoucherEligible ? wowinGreen : const Color(0xFFE65100),
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _shippingVoucher.name,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12.5,
+                                          color: isVoucherEligible ? const Color(0xFF1B5E20) : const Color(0xFFBF360C),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    isVoucherEligible
+                                        ? 'Voucher otomatis aktif! Hemat ${_currencyFormat.format(shippingDiscount)}'
+                                        : 'Belanja ${_currencyFormat.format(_shippingVoucher.minPurchase - totalBelanja)} lagi untuk klaim diskon ongkir ${_currencyFormat.format(_shippingVoucher.discountAmount)}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isVoucherEligible ? Colors.green.shade800 : Colors.brown.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isVoucherEligible ? wowinGreen : Colors.grey.shade400,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                isVoucherEligible ? 'TERAPKAN' : 'BELUM AKTIF',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
                     // --- 3. OPSI TUKAR POIN LOYALITAS ---
                     if (_userPoints > 0) ...[
                       Container(
@@ -362,39 +798,52 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     // --- 4. PILIHAN METODE PEMBAYARAN ---
                     const Text('Metode Pembayaran:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
-                      child: RadioGroup<String>(
-                        groupValue: selectedPayment,
-                        onChanged: (val) {
-                          if (val != null) setModalState(() => selectedPayment = val);
-                        },
-                        child: Column(
+                    if (activeMethods.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
                           children: [
-                            RadioListTile<String>(
-                              title: const Text('Transfer Bank (BCA / BRI)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                              subtitle: Text('Instruksi rekening muncul setelah konfirmasi', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
-                              value: 'transfer',
-                              activeColor: wowinGreen,
-                            ),
-                            const Divider(height: 1),
-                            RadioListTile<String>(
-                              title: const Text('Cash on Delivery (COD)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                              subtitle: Text('Bayar tunai ke kurir saat barang tiba', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
-                              value: 'cod',
-                              activeColor: wowinGreen,
-                            ),
-                            const Divider(height: 1),
-                            RadioListTile<String>(
-                              title: const Text('Pesan via WhatsApp', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                              subtitle: Text('Langsung terhubung dengan Admin Wowin', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
-                              value: 'wa',
-                              activeColor: wowinGreen,
+                            const Icon(Icons.info_outline, color: Colors.red, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Metode pembayaran sedang tidak aktif atau dalam pemeliharaan.',
+                                style: TextStyle(fontSize: 12, color: Colors.red.shade900),
+                              ),
                             ),
                           ],
                         ),
+                      )
+                    else
+                      Container(
+                        decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
+                        child: RadioGroup<String>(
+                          groupValue: selectedPayment,
+                          onChanged: (val) {
+                            if (val != null) setModalState(() => selectedPayment = val);
+                          },
+                          child: Column(
+                            children: [
+                              for (int i = 0; i < activeMethods.length; i++) ...[
+                                RadioListTile<String>(
+                                  title: Text(activeMethods[i].name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  subtitle: activeMethods[i].description.isNotEmpty
+                                      ? Text(activeMethods[i].description, style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600))
+                                      : null,
+                                  value: activeMethods[i].code,
+                                  activeColor: wowinGreen,
+                                ),
+                                if (i < activeMethods.length - 1) const Divider(height: 1),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
 
                     const SizedBox(height: 14),
                     const Text('Catatan Tambahan (Opsional):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -428,14 +877,93 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               Text(_currencyFormat.format(totalBelanja), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Ongkos Kirim', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                              const Text('Gratis (Kurir Wowin)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: wowinGreen)),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFD32F2F),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'J&T EZ',
+                                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 9),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text('Ongkir ($roundedWeight Kg)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _isJatimDanMadura(alamatPengiriman)
+                                        ? 'Tarif VIP J&T Jawara ${_currencyFormat.format(_shippingVoucher.baseRatePerKg)}/Kg (Jatim & Madura)'
+                                        : (_isPulauJawa(alamatPengiriman)
+                                            ? 'Tarif VIP J&T Jawara ${_currencyFormat.format(_shippingVoucher.rateJawaNonJatim)}/Kg (Pulau Jawa)'
+                                            : 'Tarif Reguler Luar P. Jawa'),
+                                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                _currencyFormat.format(shippingCost),
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: shippingDiscount > 0 ? Colors.grey.shade400 : Colors.black87,
+                                  decoration: shippingDiscount > 0 ? TextDecoration.lineThrough : null,
+                                ),
+                              ),
                             ],
                           ),
+                          if (shippingDiscount > 0) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.confirmation_num_rounded, color: wowinGreen, size: 14),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Diskon Ongkir (${_shippingVoucher.code})',
+                                      style: const TextStyle(fontSize: 12, color: wowinGreen, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  '- ${_currencyFormat.format(shippingDiscount)}',
+                                  style: const TextStyle(fontSize: 12, color: wowinGreen, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Ongkir Akhir J&T',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                                ),
+                                Text(
+                                  netShippingCost == 0.0 ? 'Rp 0 (GRATIS)' : _currencyFormat.format(netShippingCost),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: netShippingCost == 0.0 ? wowinGreen : Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           if (usePoints && pointDiscount > 0) ...[
                             const SizedBox(height: 4),
                             Row(
@@ -469,9 +997,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 2,
                         ),
-                        onPressed: _isProcessingCheckout ? null : () async {
+                        onPressed: (_isProcessingCheckout || activeMethods.isEmpty) ? null : () async {
                           Navigator.pop(ctx); // Tutup modal konfirmasi
-                          await _processCheckout(selectedPayment, noteController.text, usePoints);
+                          await _processCheckout(selectedPayment, noteController.text, usePoints, currentShippingAddress);
                         },
                         child: _isProcessingCheckout
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
@@ -490,7 +1018,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   // --- FUNGSI MENGIRIM DATA KE SERVER / OFFLINE FALLBACK ---
-  Future<void> _processCheckout(String paymentMethod, String note, bool usePoints) async {
+  Future<void> _processCheckout(String paymentMethod, String note, bool usePoints, String shippingAddress) async {
     setState(() => _isProcessingCheckout = true);
 
     try {
@@ -507,6 +1035,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           'metode_pembayaran': paymentMethod,
           'catatan': note,
           'use_points': usePoints ? '1' : '0',
+          'alamat': shippingAddress,
         },
       ).timeout(const Duration(seconds: 8));
 
@@ -527,14 +1056,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     } catch (e) {
       if (!mounted) return;
       // Jika jaringan gagal / offline, tampilkan modal opsi draf & WhatsApp
-      _showOfflineOrderOptionsModal(context, paymentMethod, note);
+      _showOfflineOrderOptionsModal(context, paymentMethod, note, shippingAddress);
     } finally {
       if (mounted) setState(() => _isProcessingCheckout = false);
     }
   }
 
   // --- MODAL PENANGANAN CHECKOUT SAAT OFFLINE ---
-  void _showOfflineOrderOptionsModal(BuildContext context, String paymentMethod, String note) {
+  void _showOfflineOrderOptionsModal(BuildContext context, String paymentMethod, String note, [String? shippingAddress]) {
     final cartItems = ref.read(cartProvider).items;
     final double subtotal = ref.read(cartProvider).subtotal;
 
@@ -582,7 +1111,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                   onPressed: () {
                     Navigator.pop(ctx);
-                    _sendOfflineOrderToWhatsApp(cartItems, subtotal, paymentMethod, note);
+                    _sendOfflineOrderToWhatsApp(cartItems, subtotal, paymentMethod, note, shippingAddress);
                   },
                   icon: const Icon(Icons.chat_rounded, color: Colors.white, size: 18),
                   label: const Text('Kirim Pesanan via WhatsApp Sekarang', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5)),
@@ -617,8 +1146,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Future<void> _sendOfflineOrderToWhatsApp(List<dynamic> items, double subtotal, String paymentMethod, String note) async {
-    const String waNumber = '6281216301220';
+  Future<void> _sendOfflineOrderToWhatsApp(List<dynamic> items, double subtotal, String paymentMethod, String note, [String? explicitAddress]) async {
+    final waMethod = _paymentMethods.where((m) => m.code == 'wa').firstOrNull;
+    final String waNumber = (waMethod != null && waMethod.phoneNumber != null && waMethod.phoneNumber!.trim().isNotEmpty)
+        ? waMethod.phoneNumber!.trim()
+        : '6281216301220';
     final dynamic membership = _userProfile?['membership'];
     final String nama = (membership != null && membership['nama_toko'] != null && membership['nama_toko'].toString().trim().isNotEmpty)
         ? membership['nama_toko'].toString()
@@ -626,9 +1158,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final String hp = (membership != null && membership['no_hp'] != null && membership['no_hp'].toString().trim().isNotEmpty)
         ? membership['no_hp'].toString()
         : (membership?['nomor_hp'] ?? _userProfile?['no_hp'] ?? _userProfile?['phone_number'] ?? _userProfile?['phone'] ?? _userProfile?['no_telp'] ?? '-');
-    final String alamat = (membership != null && membership['alamat'] != null && membership['alamat'].toString().trim().isNotEmpty)
-        ? membership['alamat'].toString()
-        : (_userProfile?['alamat'] ?? '-');
+    final String alamat = (explicitAddress != null && explicitAddress.trim().isNotEmpty && explicitAddress.trim() != '-')
+        ? explicitAddress
+        : ((membership != null && membership['alamat'] != null && membership['alamat'].toString().trim().isNotEmpty)
+            ? membership['alamat'].toString()
+            : (_userProfile?['alamat'] ?? '-'));
 
     final StringBuffer sb = StringBuffer();
     sb.writeln('Halo Admin Wowin Food, saya ingin membuat pesanan (Mode Offline):');
@@ -653,8 +1187,27 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       sb.writeln('• $name ($qty $unit) - ${_currencyFormat.format(itemTotal)}');
     }
 
+    final double totalWeightKg = _calculateTotalWeight(items);
+    final int roundedWeight = totalWeightKg.ceil();
+    final double shippingCost = _calculateShippingCost(totalWeightKg, alamat);
+    final bool isVoucherActive = _shippingVoucher.isActive;
+    final bool isVoucherEligible = isVoucherActive && subtotal >= _shippingVoucher.minPurchase;
+    final double shippingDiscount = isVoucherEligible
+        ? (shippingCost >= _shippingVoucher.discountAmount ? _shippingVoucher.discountAmount : shippingCost)
+        : 0.0;
+    final double netShippingCost = (shippingCost - shippingDiscount).clamp(0.0, double.infinity);
+    final double grandTotal = subtotal + netShippingCost;
+
     sb.writeln('');
-    sb.writeln('💰 *Total Estimasi:* ${_currencyFormat.format(subtotal)}');
+    sb.writeln('📦 *Estimasi Berat J&T:* $roundedWeight Kg');
+    sb.writeln('🚚 *Ongkir J&T Express:* ${_currencyFormat.format(shippingCost)}');
+    if (shippingDiscount > 0) {
+      sb.writeln('🎟️ *Diskon Ongkir:* -${_currencyFormat.format(shippingDiscount)} (${_shippingVoucher.name})');
+    }
+    if (netShippingCost == 0.0) {
+      sb.writeln('✨ *Ongkir Akhir:* Rp 0 (GRATIS ONGKIR)');
+    }
+    sb.writeln('💰 *Total Belanja + Ongkir:* ${_currencyFormat.format(grandTotal)}');
     sb.writeln('💳 *Metode Pembayaran:* ${paymentMethod.toUpperCase()}');
     if (note.trim().isNotEmpty) {
       sb.writeln('📝 *Catatan:* $note');
@@ -757,38 +1310,58 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
                   // --- KARTU INSTRUKSI BERDASARKAN METODE PEMBAYARAN ---
                   if (paymentMethod == 'transfer') ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE3F2FD),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF90CAF9)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
+                    Builder(
+                      builder: (context) {
+                        final tfMethod = _paymentMethods.where((m) => m.code == 'transfer').firstOrNull;
+                        final activeBanks = tfMethod?.bankAccounts.where((b) => b.isActive).toList() ?? [];
+
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE3F2FD),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFF90CAF9)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.account_balance_rounded, color: Color(0xFF1565C0), size: 18),
-                              SizedBox(width: 8),
+                              const Row(
+                                children: [
+                                  Icon(Icons.account_balance_rounded, color: Color(0xFF1565C0), size: 18),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Rekening Tujuan Transfer',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D47A1)),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              if (activeBanks.isNotEmpty) ...[
+                                for (int i = 0; i < activeBanks.length; i++) ...[
+                                  _buildBankItem(
+                                    context,
+                                    activeBanks[i].bankName,
+                                    activeBanks[i].accountNumber,
+                                    activeBanks[i].accountHolder,
+                                  ),
+                                  if (i < activeBanks.length - 1)
+                                    const Divider(height: 16, color: Color(0xFFBBDEFB)),
+                                ],
+                              ] else ...[
+                                _buildBankItem(context, 'Bank BCA', '0891234567', 'PT WOWIN PURNOMO PUTERA'),
+                                const Divider(height: 16, color: Color(0xFFBBDEFB)),
+                                _buildBankItem(context, 'Bank BRI', '0123-01-000456-53-0', 'PT SANKE BERSINAR TERANG'),
+                              ],
+                              const SizedBox(height: 8),
                               Text(
-                                'Rekening Tujuan Transfer',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D47A1)),
+                                'Catatan: Silakan transfer tepat $formattedTotal lalu konfirmasi via WhatsApp.',
+                                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey.shade700),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          _buildBankItem(context, 'Bank BCA', '0891234567', 'PT WOWIN PURNOMO PUTERA'),
-                          const Divider(height: 16, color: Color(0xFFBBDEFB)),
-                          _buildBankItem(context, 'Bank BRI', '0123-01-000456-53-0', 'PT SANKE BERSINAR TERANG'),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Catatan: Silakan transfer tepat $formattedTotal lalu konfirmasi via WhatsApp.',
-                            style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey.shade700),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ] else if (paymentMethod == 'cod') ...[
                     Container(
@@ -972,7 +1545,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _openWhatsAppOrder(String invoice, String total, String method) async {
-    const String waNumber = '6281216301220';
+    final waMethod = _paymentMethods.where((m) => m.code == 'wa').firstOrNull;
+    final String waNumber = (waMethod != null && waMethod.phoneNumber != null && waMethod.phoneNumber!.trim().isNotEmpty)
+        ? waMethod.phoneNumber!.trim()
+        : '6281216301220';
     final dynamic membership = _userProfile?['membership'];
     final String nama = (membership != null && membership['nama_toko'] != null && membership['nama_toko'].toString().trim().isNotEmpty)
         ? membership['nama_toko'].toString()
@@ -1084,6 +1660,67 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       body: Column(
         children: [
           const OfflineBanner(),
+          if (cartState.items.isNotEmpty && _shippingVoucher.isActive)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: cartState.subtotal >= _shippingVoucher.minPurchase
+                    ? const Color(0xFFE8F5E9)
+                    : const Color(0xFFFFF8E1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: cartState.subtotal >= _shippingVoucher.minPurchase
+                      ? const Color(0xFFA5D6A7)
+                      : const Color(0xFFFFD54F),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: cartState.subtotal >= _shippingVoucher.minPurchase
+                          ? wowinGreen.withValues(alpha: 0.12)
+                          : const Color(0xFFFFE082),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      cartState.subtotal >= _shippingVoucher.minPurchase
+                          ? Icons.local_shipping_rounded
+                          : Icons.local_offer_outlined,
+                      color: cartState.subtotal >= _shippingVoucher.minPurchase
+                          ? wowinGreen
+                          : const Color(0xFFE65100),
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      cartState.subtotal >= _shippingVoucher.minPurchase
+                          ? '🎉 Diskon Ongkir 1 Kg (${_currencyFormat.format(_shippingVoucher.discountAmount)}) Aktif!'
+                          : 'Belanja ${_currencyFormat.format(_shippingVoucher.minPurchase - cartState.subtotal)} lagi untuk dapat Gratis Ongkir 1 Kg!',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: cartState.subtotal >= _shippingVoucher.minPurchase
+                            ? const Color(0xFF1B5E20)
+                            : const Color(0xFFBF360C),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: cartState.isLoading || _isProcessingCheckout
                 ? const Center(child: CircularProgressIndicator(color: wowinGreen))

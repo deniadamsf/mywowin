@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/wowin_theme.dart';
+import '../../../core/services/cache_service.dart';
+import '../../cart/models/payment_method_model.dart';
 import 'review_order_screen.dart';
 
 class OrderDetailScreen extends StatelessWidget {
@@ -31,7 +33,18 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   Future<void> _contactAdmin(String invoice, [String? paymentMethod, String? total]) async {
-    const String waNumber = '6281216301220';
+    String waNumber = '6281216301220';
+    try {
+      final cached = await CacheService.getPaymentMethods();
+      if (cached != null) {
+        final methods = cached.map((e) => PaymentMethodModel.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+        final wa = methods.where((m) => m.code == 'wa').firstOrNull;
+        if (wa != null && wa.phoneNumber != null && wa.phoneNumber!.trim().isNotEmpty) {
+          waNumber = wa.phoneNumber!.trim();
+        }
+      }
+    } catch (_) {}
+
     final String text = 'Halo Admin Wowin Food, saya ingin konfirmasi pesanan saya:\n\n'
         '• *No. Invoice:* $invoice\n'
         '${total != null ? '• *Total:* $total\n' : ''}'
@@ -41,6 +54,25 @@ class OrderDetailScreen extends StatelessWidget {
 
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _trackJnt(BuildContext context, String? noResi) async {
+    if (noResi == null || noResi.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nomor resi belum tersedia')),
+      );
+      return;
+    }
+    final Uri url = Uri.parse('https://www.jet.co.id/track?awb=$noResi');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak dapat membuka link pelacakan J&T Express')),
+        );
+      }
     }
   }
 
@@ -128,9 +160,37 @@ class OrderDetailScreen extends StatelessWidget {
                         children: [
                           const Text('Rekening Tujuan Wowin:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
                           const SizedBox(height: 8),
-                          _buildBankRow(context, 'Bank BCA', '0891234567', 'PT WOWIN PURNOMO PUTERA'),
-                          const Divider(height: 14, color: Color(0xFFBBDEFB)),
-                          _buildBankRow(context, 'Bank BRI', '0123-01-000456-53-0', 'PT SANKE BERSINAR TERANG'),
+                          FutureBuilder<List<dynamic>?>(
+                            future: CacheService.getPaymentMethods(),
+                            builder: (context, snapshot) {
+                              List<BankAccountModel> banks = [];
+                              if (snapshot.hasData && snapshot.data != null) {
+                                final methods = snapshot.data!
+                                    .map((e) => PaymentMethodModel.fromJson(Map<String, dynamic>.from(e as Map)))
+                                    .toList();
+                                final tf = methods.where((m) => m.code == 'transfer').firstOrNull;
+                                if (tf != null) {
+                                  banks = tf.bankAccounts.where((b) => b.isActive).toList();
+                                }
+                              }
+                              if (banks.isEmpty) {
+                                banks = [
+                                  BankAccountModel(id: '1', bankName: 'Bank BCA', accountNumber: '0891234567', accountHolder: 'PT WOWIN PURNOMO PUTERA'),
+                                  BankAccountModel(id: '2', bankName: 'Bank BRI', accountNumber: '0123-01-000456-53-0', accountHolder: 'PT SANKE BERSINAR TERANG'),
+                                ];
+                              }
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  for (int i = 0; i < banks.length; i++) ...[
+                                    _buildBankRow(context, banks[i].bankName, banks[i].accountNumber, banks[i].accountHolder),
+                                    if (i < banks.length - 1) const Divider(height: 14, color: Color(0xFFBBDEFB)),
+                                  ],
+                                ],
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -138,6 +198,142 @@ class OrderDetailScreen extends StatelessWidget {
                     Text(
                       'Pesanan akan diantar oleh kurir kami. Mohon siapkan uang pas saat barang diterima.',
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // --- KARTU PENGIRIMAN LOGISTIK (J&T EXPRESS) ---
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD32F2F),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'J&T EXPRESS',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 0.5),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Layanan Reguler (EZ)',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: WowinColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                      if (order['total_weight_kg'] != null)
+                        Text(
+                          '${order['total_weight_kg']} Kg',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (order['no_resi'] != null && order['no_resi'].toString().isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF5F5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFFCDD2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('NOMOR RESI RESMI', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                order['no_resi'].toString(),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1.2, color: Color(0xFFC62828)),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: order['no_resi'].toString()));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Nomor resi berhasil disalin!'), duration: Duration(seconds: 2)),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFFEF9A9A)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.copy_rounded, size: 13, color: Color(0xFFC62828)),
+                                      SizedBox(width: 4),
+                                      Text('Salin', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFC62828))),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (order['jnt_des_code'] != null && order['jnt_des_code'].toString().isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text('Kode Area: ${order['jnt_des_code']}', style: const TextStyle(fontSize: 11, color: Colors.black54, fontFamily: 'monospace')),
+                          ],
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _trackJnt(context, order['no_resi'].toString()),
+                              icon: const Icon(Icons.radar_rounded, size: 16),
+                              label: const Text('Lacak Perjalanan Paket', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD32F2F),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 16, color: Colors.grey),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isPending
+                                  ? 'Nomor resi otomatis diterbitkan setelah pembayaran lunas.'
+                                  : 'Pesanan sedang dipersiapkan di gudang untuk serah terima ke kurir J&T Express.',
+                              style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -238,30 +434,58 @@ class OrderDetailScreen extends StatelessWidget {
               ),
             ),
 
-            // --- BARIS RINCIAN POTONGAN POIN JIKA ADA ---
-            if (potonganPoin > 0) ...[
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
+            // --- BARIS RINCIAN ONGKOS KIRIM J&T & POTONGAN POIN ---
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD32F2F),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('J&T EZ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 9)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Ongkos Kirim (${order['total_weight_kg'] ?? 1.0} Kg)', style: const TextStyle(fontSize: 12.5, color: Colors.black87)),
+                        ],
+                      ),
+                      Text(
+                        'Rp ${NumberFormat('#,###', 'id_ID').format(num.tryParse(order['shipping_cost']?.toString() ?? '0') ?? 0)}',
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                  if (potonganPoin > 0) ...[
+                    const SizedBox(height: 8),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.stars_rounded, color: Color(0xFFFFA000), size: 18),
-                        const SizedBox(width: 8),
-                        Text('Potongan Poin ($pointsUsed Poin)', style: const TextStyle(fontSize: 13, color: Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
+                        Row(
+                          children: [
+                            const Icon(Icons.stars_rounded, color: Color(0xFFFFA000), size: 16),
+                            const SizedBox(width: 6),
+                            Text('Potongan Poin ($pointsUsed Poin)', style: const TextStyle(fontSize: 12.5, color: Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        Text(
+                          '- Rp ${NumberFormat('#,###', 'id_ID').format(potonganPoin)}',
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                        ),
                       ],
                     ),
-                    Text(
-                      '- Rp ${NumberFormat('#,###', 'id_ID').format(potonganPoin)}',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
-                    ),
                   ],
-                ),
+                ],
               ),
-            ],
+            ),
             // --- KARTU PENILAIAN PESANAN (JIKA STATUS SELESAI / LUNAS / DIKIRIM) ---
             if (['selesai', 'completed', 'lunas', 'dikirim'].contains((order['status'] ?? '').toString().toLowerCase())) ...[
               Container(

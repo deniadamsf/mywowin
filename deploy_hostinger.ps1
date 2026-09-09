@@ -21,7 +21,7 @@ if (-not (Test-Path $LocalRoot)) {
 Write-Host "`nMengunggah file aplikasi (app, config, resources, routes, migrations)..." -ForegroundColor Cyan
 
 # 1. Pastikan folder tujuan di remote server sudah ada
-ssh -T mywowin "mkdir -p ~/domains/mywowin.com/public_html/app/Mail ~/domains/mywowin.com/public_html/resources/views/public/emails ~/domains/mywowin.com/public_html/resources/views/public/rewards ~/domains/mywowin.com/public_html/resources/views/public/members ~/domains/mywowin.com/public_html/resources/views/public/orders ~/domains/mywowin.com/public_html/resources/views/public/trackings ~/domains/mywowin.com/public_html/resources/views/public/products ~/domains/mywowin.com/public_html/resources/views/admin/reviews ~/domains/mywowin.com/public_html/resources/views/superadmin/reviews ~/domains/mywowin.com/public_html/database/migrations"
+ssh -T mywowin "mkdir -p ~/domains/mywowin.com/public_html/app/Services ~/domains/mywowin.com/public_html/resources/views/admin/orders ~/domains/mywowin.com/public_html/app/Mail ~/domains/mywowin.com/public_html/resources/views/public/emails ~/domains/mywowin.com/public_html/resources/views/public/rewards ~/domains/mywowin.com/public_html/resources/views/public/members ~/domains/mywowin.com/public_html/resources/views/public/orders ~/domains/mywowin.com/public_html/resources/views/public/trackings ~/domains/mywowin.com/public_html/resources/views/public/products ~/domains/mywowin.com/public_html/resources/views/admin/reviews ~/domains/mywowin.com/public_html/resources/views/superadmin/reviews ~/domains/mywowin.com/public_html/database/migrations"
 
 # 2. Upload file-file inti menggunakan SCP
 scp "$LocalRoot\app\Mail\ResetPasswordEmail.php" "$RemoteTarget/app/Mail/"
@@ -66,14 +66,21 @@ scp "$LocalRoot\app\Models\Order.php" "$RemoteTarget/app/Models/"
 scp "$LocalRoot\app\Models\Product.php" "$RemoteTarget/app/Models/"
 scp "$LocalRoot\app\Models\BranchSetting.php" "$RemoteTarget/app/Models/"
 scp "$LocalRoot\app\Models\Review.php" "$RemoteTarget/app/Models/"
+scp "$LocalRoot\app\Services\JntService.php" "$RemoteTarget/app/Services/"
+scp "$LocalRoot\app\Http\Controllers\Admin\AdminOrderController.php" "$RemoteTarget/app/Http/Controllers/Admin/"
+scp "$LocalRoot\app\Http\Controllers\Superadmin\SuperOrderController.php" "$RemoteTarget/app/Http/Controllers/Superadmin/"
+scp "$LocalRoot\resources\views\admin\orders\index.blade.php" "$RemoteTarget/resources/views/admin/orders/"
+scp "$LocalRoot\resources\views\admin\orders\shipping_label.blade.php" "$RemoteTarget/resources/views/admin/orders/"
 scp "$LocalRoot\routes\api.php" "$RemoteTarget/routes/"
 scp "$LocalRoot\routes\web.php" "$RemoteTarget/routes/"
 scp "$LocalRoot\config\mail.php" "$RemoteTarget/config/"
 scp "$LocalRoot\config\app.php" "$RemoteTarget/config/"
+scp "$LocalRoot\config\jnt.php" "$RemoteTarget/config/"
 scp "$LocalRoot\database\migrations\2026_08_20_000001_add_last_daily_claim_at_to_users_table.php" "$RemoteTarget/database/migrations/"
 scp "$LocalRoot\database\migrations\2026_08_20_000002_add_points_columns_to_orders_table.php" "$RemoteTarget/database/migrations/"
 scp "$LocalRoot\database\migrations\2026_08_31_000001_create_reviews_table.php" "$RemoteTarget/database/migrations/"
 scp "$LocalRoot\database\migrations\2026_08_31_000002_add_google_maps_review_url_to_branch_settings_table.php" "$RemoteTarget/database/migrations/"
+scp "$LocalRoot\database\migrations\2026_09_09_000001_add_jnt_shipping_to_orders_table.php" "$RemoteTarget/database/migrations/"
 scp "$LocalRoot\.htaccess" "$RemoteTarget/"
 
 Write-Host "`nMenjalankan migrasi database di server..." -ForegroundColor Cyan

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/wowin_theme.dart';
 import 'package:image_cropper/image_cropper.dart';
+import '../../../core/widgets/address_picker_bottom_sheet.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -209,8 +210,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               _buildTextField('Nama Toko', _tokoController, Icons.storefront),
               _buildTextField('Nomor HP (WhatsApp)', _hpController, Icons.phone_android),
               _buildTextField('Alamat Lengkap', _alamatController, Icons.location_on_outlined, maxLines: 3),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    final result = await AddressPickerBottomSheet.show(
+                      context,
+                      initialAddress: _alamatController.text,
+                      showSaveToProfileCheckbox: false,
+                    );
+                    if (result != null) {
+                      setState(() {
+                        _alamatController.text = result.fullAddress;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.edit_location_alt_rounded, size: 16, color: primaryGreen),
+                  label: const Text(
+                    'Pilih Alamat Berjenjang (Provinsi & Kota)',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryGreen),
+                  ),
+                ),
+              ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
               // --- TOMBOL SIMPAN ---
               SizedBox(

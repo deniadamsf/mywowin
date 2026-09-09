@@ -51,6 +51,7 @@ class SuperProductController extends Controller
         $request->validate([
             'nama_produk' => 'nullable|string|max:255',
             'isi_ml' => 'nullable|integer',
+            'berat' => 'nullable|numeric|min:0',
             'harga' => 'nullable|integer',
             'no_bpom' => 'nullable|string|max:255',
             'no_halal' => 'nullable|string|max:255',
@@ -63,6 +64,7 @@ class SuperProductController extends Controller
         $product =Product::create([
             'nama_produk' => $request->input ('nama_produk'),
             'isi_ml' => $request->input ('isi_ml'),
+            'berat' => $request->input ('berat'),
             'harga' => $request->input ('harga'),
             'no_bpom' => $request->input ('no_bpom'),
             'no_halal' => $request->input('no_halal'),
@@ -107,6 +109,7 @@ class SuperProductController extends Controller
     $product->update([
         'nama_produk' => $request->nama_produk,
         'isi_ml' => $request->isi_ml,
+        'berat' => $request->berat,
         'harga' => $request->harga,
         'isi_karton' => $request->isi_karton,
         'no_bpom' => $request->no_bpom,

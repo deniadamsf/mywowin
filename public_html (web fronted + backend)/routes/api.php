@@ -26,6 +26,8 @@ Route::get('/heroes', [BannerController::class, 'getHeroes']);
 Route::get('/bundlings', [BannerController::class, 'getBundlings']);
 Route::get('/rewards', [\App\Http\Controllers\Api\RewardController::class, 'index']);
 Route::get('/products/{id}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'showByProduct']);
+Route::get('/payment-methods', [\App\Http\Controllers\Api\PaymentMethodApiController::class, 'index']);
+Route::get('/shipping-voucher', [\App\Http\Controllers\Api\PaymentMethodApiController::class, 'getShippingVoucher']);
 
 // --- RUTE TERPROTEKSI ---
 Route::middleware('auth:sanctum')->group(function () {
@@ -50,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rute Checkout & Orders
     Route::post('/checkout', [\App\Http\Controllers\Api\OrderController::class, 'checkout']);
     Route::get('/orders', [\App\Http\Controllers\Api\OrderController::class, 'history']); 
+    Route::get('/orders/{id}/tracking', [\App\Http\Controllers\Api\OrderController::class, 'tracking']); 
     
     // Rute Rating & Ulasan Pesanan
     Route::post('/orders/{id}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'store']);

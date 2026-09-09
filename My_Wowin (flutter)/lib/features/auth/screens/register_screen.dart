@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/wowin_theme.dart';
 import 'otp_verification_screen.dart';
+import '../../../core/widgets/address_picker_bottom_sheet.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -233,6 +234,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               _buildTextField('Nama Toko', _namaTokoController, Icons.storefront),
                               _buildTextField('Nomor Handphone (WA)', _noHpController, Icons.phone_android, type: TextInputType.phone),
                               _buildTextField('Alamat Lengkap', _alamatController, Icons.location_on),
+                              const SizedBox(height: 2),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  onPressed: () async {
+                                    final result = await AddressPickerBottomSheet.show(
+                                      context,
+                                      initialAddress: _alamatController.text,
+                                      showSaveToProfileCheckbox: false,
+                                    );
+                                    if (result != null) {
+                                      setState(() {
+                                        _alamatController.text = result.fullAddress;
+                                      });
+                                    }
+                                  },
+                                  icon: const Icon(Icons.edit_location_alt_rounded, size: 15, color: wowinGreen),
+                                  label: const Text(
+                                    'Pilih Alamat Berjenjang (Provinsi & Kota)',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: wowinGreen),
+                                  ),
+                                ),
+                              ),
 
                               // --- KOLOM REFERRAL SEKARANG OPSIONAL ---
                               _buildTextField('Nama Sales / Referral', _namaSalesController, Icons.handshake, isOptional: true),

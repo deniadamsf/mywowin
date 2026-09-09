@@ -240,8 +240,23 @@
                 </div>
             @endif
 
+            {{-- Baris Info Pengiriman J&T Express Jika Resi Sudah Ada --}}
+            @if(!empty($order->no_resi))
+                <div class="px-4 py-2.5 bg-red-50/60 border-t border-red-100 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-red-600 text-white font-black text-[9px] px-2 py-0.5 rounded">J&T EXPRESS</span>
+                        <span class="text-xs font-bold text-gray-800">No. Resi: <span class="text-red-700 select-all">{{ $order->no_resi }}</span></span>
+                        @if(!empty($order->jnt_des_code))
+                            <span class="text-[10px] text-gray-500 font-mono bg-white px-1.5 py-0.5 rounded border">({{ $order->jnt_des_code }})</span>
+                        @endif
+                    </div>
+                    <a href="{{ \App\Services\JntService::getTrackingUrl($order->no_resi) }}" target="_blank" class="inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 underline">
+                        <i class="ri-radar-line"></i> Lacak Paket J&T &rarr;
+                    </a>
+                </div>
+            @endif
+
             {{-- Footer Pesanan: Total & Tombol Aksi --}}
-{{-- Footer Pesanan: Total & Tombol Aksi --}}
 <div class="flex flex-col md:flex-row justify-between items-center px-4 py-4 border-t border-gray-100 bg-gray-50/50 gap-4">
     
     <div class="hidden md:block text-[10px] text-gray-400 uppercase font-bold tracking-widest">

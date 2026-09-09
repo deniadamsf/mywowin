@@ -52,7 +52,7 @@ class ProductController extends Controller
         $request->validate([
             'nama_produk' => 'nullable|string|max:255',
             'isi_ml' => 'nullable|integer',
-            'berat'  => 'nullable|in:ml,gram,kg,liter,mg',
+            'berat'  => 'nullable|numeric|min:0',
             'harga' => 'nullable|integer',
             'no_bpom' => 'nullable|string|max:255',
             'no_halal' => 'nullable|string|max:255',

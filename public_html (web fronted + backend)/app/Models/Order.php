@@ -36,6 +36,13 @@ class Order extends Model
         'total_potongan_retur',
         'points_used',
         'potongan_poin',
+        'shipping_courier',
+        'no_resi',
+        'jnt_order_id',
+        'jnt_des_code',
+        'total_weight_kg',
+        'shipping_cost',
+        'shipping_status',
     ];
 
     // Relasi: Order dimiliki oleh User (member)

@@ -197,6 +197,12 @@
                         </th>
                         <th class="px-6 py-3 text-left">
                             <div class="flex items-center">
+                                <i class="fas fa-weight-hanging mr-2 text-purple-700"></i>
+                                Gramasi (Berat)
+                            </div>
+                        </th>
+                        <th class="px-6 py-3 text-left">
+                            <div class="flex items-center">
                                 <i class="fas fa-money-bill-wave mr-2 text-purple-700"></i>
                                 Harga
                             </div>
@@ -232,6 +238,11 @@
                             <td class="px-6 py-4">
                                 <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium">
                                     {{ $product->isi_ml }} ml
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-md text-xs font-bold">
+                                    {{ $product->berat ? number_format($product->berat, 0, ',', '.') . ' gr' : '-' }}
                                 </span>
                             </td>
                             <td class="px-6 py-4">
@@ -289,6 +300,7 @@
                     @foreach ([
                         'Nama Produk' => ['fas fa-tag', $product->nama_produk],
                         'Isi per (ml)' => ['fas fa-flask', $product->isi_ml . ' ml'],
+                        'Gramasi (Berat)' => ['fas fa-weight-hanging', ($product->berat ? number_format($product->berat, 0, ',', '.') . ' gr' : '-')],
                         'Harga' => ['fas fa-money-bill-wave', 'Rp ' . number_format($product->harga, 0, ',', '.')],
                         'Isi Karton' => ['fas fa-box', $product->isi_karton],
                         'Nomor BPOM' => ['fas fa-certificate', $product->no_bpom],
@@ -379,6 +391,15 @@
                             <label class="block text-sm font-medium text-gray-700">Isi per (ml)</label>
                             <input type="text" name="isi_ml" value="{{ $product->isi_ml }}"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring focus:ring-purple-700 focus:border-purple-700">
+                        </div>
+
+                        <!-- Berat (Gram) -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700">Berat Kotor / Gramasi (Gram)</label>
+                            <input type="number" step="any" name="berat" value="{{ old('berat', $product->berat ? (int)$product->berat : '') }}"
+                                placeholder="Contoh: 500"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring focus:ring-purple-700 focus:border-purple-700">
+                            <p class="text-xs text-gray-400">Berat kotor fisik termasuk botol/kemasan untuk acuan ongkir J&T.</p>
                         </div>
 
                         <!-- Harga -->

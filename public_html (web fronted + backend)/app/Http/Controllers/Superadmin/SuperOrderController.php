@@ -382,4 +382,44 @@ public function exportExcel(Request $request)
 
         return redirect()->back()->with('success', 'Order berhasil diselesaikan');
     }
+
+    /**
+     * Terbitkan Resi J&T Express otomatis (Auto AWB)
+     */
+    public function generateJntAwb($id)
+    {
+        $order = Order::with(['orderItems.product', 'user.membership'])->findOrFail($id);
+        $result = \App\Services\JntService::createOrder($order);
+
+        if ($result['success']) {
+            return redirect()->back()->with('success', $result['message']);
+        }
+        return redirect()->back()->with('error', $result['message']);
+    }
+
+    /**
+     * Batalkan Resi J&T Express
+     */
+    public function cancelJntAwb($id)
+    {
+        $order = Order::findOrFail($id);
+        $result = \App\Services\JntService::cancelOrder($order);
+
+        if ($result['success']) {
+            return redirect()->back()->with('success', $result['message']);
+        }
+        return redirect()->back()->with('error', $result['message']);
+    }
+
+    /**
+     * Tampilan Cetak Label Resi Pengiriman J&T (Format Thermal / Standar)
+     */
+    public function printShippingLabel($id)
+    {
+        $order = Order::with(['orderItems.product', 'user.membership'])->findOrFail($id);
+        $adminCabang = $order->user->kantor_cabang ?? 'Trenggalek';
+        $branchSetting = \App\Models\BranchSetting::where('enum_value', $adminCabang)->first();
+
+        return view('admin.orders.shipping_label', compact('order', 'branchSetting'));
+    }
 }

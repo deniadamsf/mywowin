@@ -15,15 +15,33 @@ class OrderController extends Controller
 {
     public function checkout(Request $request)
     {
-        // Flutter mengirim metode_pembayaran, catatan, dan opsional use_points
+        // Ambil metode pembayaran yang sedang aktif dari database
+        $activePaymentCodes = \App\Models\PaymentMethod::getActiveCodes();
+        if (empty($activePaymentCodes)) {
+            $activePaymentCodes = ['wa', 'transfer'];
+        }
+
         $request->validate([
-            'metode_pembayaran' => 'required|in:wa,cod,transfer',
+            'metode_pembayaran' => ['required', 'string', \Illuminate\Validation\Rule::in($activePaymentCodes)],
             'catatan' => 'nullable|string',
             'use_points' => 'nullable|boolean',
+            'alamat' => 'nullable|string',
+        ], [
+            'metode_pembayaran.in' => 'Metode pembayaran yang dipilih sedang dinonaktifkan oleh Admin.',
         ]);
     
         $user = Auth::user();
         $membership = $user->membership;
+        
+        // Tentukan alamat pengiriman (prioritaskan alamat yang dipilih di checkout)
+        $alamatPengiriman = ($request->filled('alamat') && trim($request->alamat) !== '-')
+            ? trim($request->alamat)
+            : ($membership->alamat ?? '-');
+
+        // Update alamat membership jika pembeli mengubah alamat di checkout
+        if ($request->filled('alamat') && trim($request->alamat) !== '-' && $membership) {
+            $membership->update(['alamat' => $alamatPengiriman]);
+        }
         
         // Ambil isi keranjang user
         $cartItems = Cart::with(['product', 'bundling.products'])
@@ -48,17 +66,26 @@ class OrderController extends Controller
         $discountData = $this->getDiscountData($membership, $cartItems, $subtotal);
         $totalAfterDiscount = $discountData['finalTotal'];
 
+        // Hitung estimasi berat pesanan (Kg) sesuai acuan timbangan fisik & J&T
+        $totalWeightKg = \App\Services\JntService::calculateCartWeight($cartItems);
+
+        // Hitung estimasi ongkir J&T Express & evaluasi Voucher Diskon Ongkir
+        $shippingCalculation = \App\Services\JntService::calculateShippingCost($totalWeightKg, $alamatPengiriman, $subtotal);
+        $shippingCost = (float) ($shippingCalculation['shipping_cost'] ?? 0);
+        $shippingDiscount = (float) ($shippingCalculation['shipping_discount'] ?? 0);
+        $netShippingCost = (float) ($shippingCalculation['net_shipping_cost'] ?? $shippingCost);
+        $voucherCode = $shippingCalculation['voucher_code'] ?? null;
+
         // Hitung Potongan Poin Loyalitas (1 Poin = Rp 1)
         $pointsUsed = 0;
         $potonganPoin = 0;
+        $totalBeforePoints = $totalAfterDiscount + $netShippingCost;
         if ($request->boolean('use_points') && ($user->total_points ?? 0) > 0) {
-            $pointsUsed = min((int)$user->total_points, (int)floor($totalAfterDiscount));
+            $pointsUsed = min((int)$user->total_points, (int)floor($totalBeforePoints));
             $potonganPoin = (float)$pointsUsed;
-            $total = max(0, $totalAfterDiscount - $potonganPoin);
             $user->decrement('total_points', $pointsUsed);
-        } else {
-            $total = $totalAfterDiscount;
         }
+        $total = max(0, $totalBeforePoints - $potonganPoin);
 
         // Buat Invoice & Simpan Order
         $invoiceNumber = 'INV-' . strtoupper(uniqid());
@@ -69,10 +96,17 @@ class OrderController extends Controller
             'total' => $total,
             'points_used' => $pointsUsed,
             'potongan_poin' => $potonganPoin,
+            'shipping_courier' => 'J&T Express (EZ)',
+            'total_weight_kg' => $totalWeightKg,
+            'shipping_cost' => $shippingCost,
+            'shipping_discount' => $shippingDiscount,
+            'voucher_code' => $voucherCode,
+            'shipping_zone' => $shippingCalculation['zone'] ?? 'jatim_madura',
+            'shipping_status' => 'Menunggu Diproses',
             'status' => 'pending',
             'payment_method' => $request->metode_pembayaran,
             'payment_status' => 'pending',
-            'alamat' => $membership->alamat ?? '-',
+            'alamat' => $alamatPengiriman,
             'catatan' => $request->catatan,
             'paid_amount' => $total,
         ]);
@@ -125,6 +159,26 @@ class OrderController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $orders
+        ], 200);
+    }
+
+    public function tracking($id)
+    {
+        $user = Auth::user();
+        $order = Order::where('user_id', $user->id)->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'invoice_number' => $order->invoice_number,
+                'shipping_courier' => $order->shipping_courier ?? 'J&T Express (EZ)',
+                'no_resi' => $order->no_resi,
+                'jnt_des_code' => $order->jnt_des_code,
+                'shipping_status' => $order->shipping_status ?? ($order->no_resi ? 'Dalam Pengiriman' : 'Menunggu Diproses'),
+                'total_weight_kg' => $order->total_weight_kg ?? 1.0,
+                'shipping_cost' => $order->shipping_cost ?? 0,
+                'tracking_url' => \App\Services\JntService::getTrackingUrl($order->no_resi),
+            ]
         ], 200);
     }
 

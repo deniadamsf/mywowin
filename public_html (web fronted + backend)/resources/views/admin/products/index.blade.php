@@ -289,7 +289,7 @@
                     @foreach ([
                         'Nama Produk' => ['fas fa-tag', $product->nama_produk],
                         'Isi' => ['fas fa-flask', $product->isi_ml],
-                        'Berat' => ['fas fa-weight-hanging', $product->berat ?? '-'],
+                        'Berat' => ['fas fa-weight-hanging', ($product->berat ? number_format($product->berat, 0, ',', '.') . ' gr' : '-')],
                         'Harga' => ['fas fa-money-bill-wave', 'Rp ' . number_format($product->harga, 0, ',', '.')],
                         'Isi Karton' => ['fas fa-box', $product->isi_karton],
                         'Nomor BPOM' => ['fas fa-certificate', $product->no_bpom],
@@ -383,18 +383,13 @@
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring focus:ring-[#16782d] focus:border-[#16782d]">
                         </div>
 
-                        <!-- Berat -->
+                        <!-- Berat (Gram) -->
                         <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">Berat</label>
-                            <select name="berat" 
+                            <label class="block text-sm font-medium text-gray-700">Berat Kotor (Gram)</label>
+                            <input type="number" step="any" name="berat" value="{{ old('berat', $product->berat ? (int)$product->berat : '') }}"
+                                placeholder="Contoh: 500"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring focus:ring-[#16782d] focus:border-[#16782d]">
-                                <option value="" disabled {{ empty($product->berat) ? 'selected' : '' }}>Pilih satuan</option>
-                                <option value="ml" {{ old('berat', $product->berat ?? '') == 'ml' ? 'selected' : '' }}>ml</option>
-                                <option value="gram" {{ old('berat', $product->berat ?? '') == 'gram' ? 'selected' : '' }}>gram</option>
-                                <option value="kg" {{ old('berat', $product->berat ?? '') == 'kg' ? 'selected' : '' }}>kg</option>
-                                <option value="liter" {{ old('berat', $product->berat ?? '') == 'liter' ? 'selected' : '' }}>liter</option>
-                                <option value="mg" {{ old('berat', $product->berat ?? '') == 'mg' ? 'selected' : '' }}>mg</option>
-                            </select>
+                            <p class="text-xs text-gray-400">Berat kotor fisik termasuk kemasan (gram) untuk dasar hitung ongkir J&T.</p>
                         </div>
 
 

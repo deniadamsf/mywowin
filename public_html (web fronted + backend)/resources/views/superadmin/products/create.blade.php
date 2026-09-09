@@ -258,6 +258,23 @@
                             <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
                         @enderror
                     </div>
+
+                    <!-- Berat Kotor Fisik (Gram) -->
+                    <div class="bg-gray-50 p-4 rounded-xl">
+                        <label for="berat" class="block text-gray-700 font-medium mb-2 flex items-center">
+                            <i class="fas fa-weight-hanging text-purple-700 mr-2"></i>
+                            Berat Kotor Fisik / Gramasi
+                        </label>
+                        <div class="relative">
+                            <input type="number" step="any" name="berat" id="berat" value="{{ old('berat') }}" placeholder="Contoh: 500" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-700 focus:border-purple-700"/>
+                            <span class="absolute right-3 top-2.5 text-gray-500">gr</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Berat kotor fisik termasuk botol/kemasan untuk acuan ongkir J&T.</p>
+                        @error('berat')
+                            <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
                     
                     <!-- Isi Karton -->
                     <div class="bg-gray-50 p-4 rounded-xl">
