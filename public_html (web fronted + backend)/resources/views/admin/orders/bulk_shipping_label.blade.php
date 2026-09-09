@@ -112,8 +112,50 @@
             max-width: 140px;
             display: block;
         }
+        .brand-mywowin {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mywowin-logo-header {
+            height: 22px;
+            width: auto;
+            max-width: 75px;
+            display: block;
+            object-fit: contain;
+        }
+        .brand-watermark-section {
+            margin-top: auto;
+            margin-bottom: 3px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .watermark-logo {
+            height: 22px;
+            width: auto;
+            max-width: 75px;
+            display: block;
+            margin-bottom: 2px;
+            opacity: 0.95;
+        }
+        .watermark-tagline {
+            font-size: 7px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #334155;
+            text-transform: uppercase;
+        }
         @media print {
             .brand-jnt {
+                color: #000000 !important;
+            }
+            .mywowin-logo-header, .watermark-logo {
+                filter: grayscale(100%) contrast(200%) !important;
+            }
+            .watermark-tagline {
                 color: #000000 !important;
             }
         }
@@ -320,6 +362,9 @@
                         </g>
                     </svg>
                 </div>
+                <div class="brand-mywowin">
+                    <img src="{{ asset('images/mywowin_logo_horizontal.png') }}" alt="My Wowin" class="mywowin-logo-header">
+                </div>
                 <div class="header-badges">
                     <span class="badge-ez">EZ</span>
                     <span class="badge-cod">NON-COD</span>
@@ -392,6 +437,12 @@
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+
+            <!-- BRAND WATERMARK SECTION -->
+            <div class="brand-watermark-section">
+                <img src="{{ asset('images/mywowin_logo_horizontal.png') }}" alt="My Wowin" class="watermark-logo">
+                <div class="watermark-tagline">DISTRIBUSI RESMI PT WOWIN PURNOMO PUTERA</div>
             </div>
 
             <!-- FOOTER RESMI -->
