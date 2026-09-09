@@ -24,10 +24,21 @@ class AuthController extends Controller
             'password' => 'required|min:6',
             'foto_profile' => 'nullable|image|mimes:jpg,jpeg,png',
             'nama_toko' => 'required|string|max:100',
-            'alamat' => 'required|string',
+            'alamat' => [
+                'required',
+                'string',
+                'min:15',
+                function ($attribute, $value, $fail) {
+                    if (!str_contains($value, ',')) {
+                        $fail('Alamat pengiriman wajib berjenjang lengkap (Provinsi, Kota/Kabupaten, Kecamatan, Desa, dan Kode Pos).');
+                    }
+                },
+            ],
             'no_hp' => 'required|string|max:15',
             'nama_sales' => 'nullable|string|max:100',
             'kantor_cabang' => 'required|in:Trenggalek,Kediri,Madiun,Solo,Jogja,Cirebon,Kudus,Bogor,Serang',
+        ], [
+            'alamat.min' => 'Alamat pengiriman terlalu pendek. Harap gunakan pemilihan alamat berjenjang lengkap.',
         ]);
 
         $fotoProfilePath = null;
