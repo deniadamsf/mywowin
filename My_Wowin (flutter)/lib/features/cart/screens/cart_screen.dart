@@ -998,6 +998,35 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           elevation: 2,
                         ),
                         onPressed: (_isProcessingCheckout || activeMethods.isEmpty) ? null : () async {
+                          final addr = currentShippingAddress.trim();
+                          final bool isAddressIncomplete = addr.isEmpty ||
+                              addr == '-' ||
+                              addr.length < 15 ||
+                              !addr.contains(',');
+
+                          if (isAddressIncomplete) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Alamat Anda belum lengkap. Silakan pilih alamat berjenjang (Provinsi, Kota, Kecamatan).'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            final result = await AddressPickerBottomSheet.show(
+                              context,
+                              initialAddress: currentShippingAddress,
+                              showSaveToProfileCheckbox: true,
+                            );
+                            if (result != null) {
+                              setModalState(() {
+                                currentShippingAddress = result.fullAddress;
+                              });
+                              if (result.saveToProfile) {
+                                _saveAddressToProfile(result.fullAddress);
+                              }
+                            }
+                            return;
+                          }
+
                           Navigator.pop(ctx); // Tutup modal konfirmasi
                           await _processCheckout(selectedPayment, noteController.text, usePoints, currentShippingAddress);
                         },
