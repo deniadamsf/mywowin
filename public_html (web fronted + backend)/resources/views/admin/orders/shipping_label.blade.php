@@ -340,9 +340,9 @@
         <!-- ALAMAT PENGIRIM -->
         <div class="address-box">
             <div class="address-title">PENGIRIM:</div>
-            <div class="address-name">{{ $branchSetting->nama_pt ?? config('jnt.shipper.name') }}</div>
-            <div class="address-phone">Telp: {{ $branchSetting->no_telp ?? config('jnt.shipper.phone') }}</div>
-            <div class="address-detail">{{ $branchSetting->alamat ?? config('jnt.shipper.address') }}</div>
+            <div class="address-name">{{ config('jnt.shipper.name', 'PT WOWIN PURNOMO PUTERA') }}</div>
+            <div class="address-phone">Telp: {{ config('jnt.shipper.phone', '081216301220') }}</div>
+            <div class="address-detail">{{ config('jnt.shipper.address', 'Jl. Raya No. KM 07, Duwet, Ngetal, Kec. Pogalan, Kab. Trenggalek, Jawa Timur 66371') }}</div>
         </div>
 
         <!-- ISI PAKET (RINGKASAN) -->
