@@ -16,16 +16,22 @@
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
-        body {
-            font-family: Arial, Helvetica, sans-serif;
+        html, body {
             margin: 0;
-            padding: 4mm;
-            background: #f1f5f9;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
             color: #000;
             font-size: 11px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            background: #fff;
+        }
+        @media screen {
+            body {
+                background: #f1f5f9;
+                padding: 16px 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
         }
         .no-print-bar {
             width: 100mm;
@@ -70,14 +76,16 @@
         }
         .label-container {
             width: 100mm;
-            min-height: 146mm;
+            height: 147mm;
+            max-height: 147mm;
             background: #fff;
             border: 2px solid #000;
-            padding: 5mm 4mm;
+            padding: 3.5mm 4mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             position: relative;
+            overflow: hidden;
         }
         /* Header */
         .header {
@@ -85,11 +93,11 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 2px solid #000;
-            padding-bottom: 5px;
-            margin-bottom: 4px;
+            padding-bottom: 4px;
+            margin-bottom: 3px;
         }
         .brand-jnt {
-            font-size: 26px;
+            font-size: 25px;
             font-weight: 900;
             color: #dc2626;
             letter-spacing: -1.5px;
@@ -110,9 +118,9 @@
         .badge-ez {
             background: #000;
             color: #fff;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 900;
-            padding: 2px 10px;
+            padding: 2px 9px;
             border-radius: 4px;
             line-height: 1.1;
         }
@@ -122,27 +130,27 @@
             border: 2px solid #000;
             font-size: 11px;
             font-weight: 900;
-            padding: 3px 6px;
+            padding: 2px 5px;
             border-radius: 4px;
         }
         /* Barcode Area */
         .barcode-area {
             text-align: center;
             border-bottom: 2px solid #000;
-            padding: 4px 0 6px 0;
+            padding: 2px 0 5px 0;
         }
         .barcode-svg-wrapper {
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
         .barcode-svg-wrapper svg {
             max-width: 92mm;
-            height: 48px;
+            height: 46px;
         }
         .awb-text {
-            font-size: 19px;
+            font-size: 18px;
             font-weight: 900;
             letter-spacing: 2px;
             margin-top: 1px;
@@ -234,21 +242,27 @@
             color: #222;
         }
         @media print {
-            body {
-                background: #fff;
-                padding: 0;
-                margin: 0;
+            html, body {
+                width: 100mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+                display: block !important;
             }
             .no-print-bar {
                 display: none !important;
             }
             .label-container {
-                border: 2px solid #000;
-                width: 100mm;
-                height: 148mm;
-                padding: 4mm;
-                page-break-after: avoid;
-                page-break-inside: avoid;
+                border: 2px solid #000 !important;
+                width: 100mm !important;
+                height: 147mm !important;
+                max-height: 147mm !important;
+                padding: 3.5mm 4mm !important;
+                margin: 0 !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
+                overflow: hidden !important;
             }
         }
     </style>

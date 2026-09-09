@@ -16,16 +16,22 @@
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
-        body {
-            font-family: Arial, Helvetica, sans-serif;
+        html, body {
             margin: 0;
-            padding: 4mm;
-            background: #f1f5f9;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
             color: #000;
             font-size: 11px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            background: #fff;
+        }
+        @media screen {
+            body {
+                background: #f1f5f9;
+                padding: 16px 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
         }
         .no-print-bar {
             width: 100mm;
@@ -70,15 +76,17 @@
         }
         .label-container {
             width: 100mm;
-            min-height: 146mm;
+            height: 147mm;
+            max-height: 147mm;
             background: #fff;
             border: 2px solid #000;
-            padding: 5mm 4mm;
+            padding: 3.5mm 4mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             position: relative;
             margin-bottom: 8mm;
+            overflow: hidden;
         }
         .page-break {
             page-break-after: always;
@@ -239,21 +247,30 @@
             color: #222;
         }
         @media print {
-            body {
-                background: #fff;
-                padding: 0;
-                margin: 0;
+            html, body {
+                width: 100mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+                display: block !important;
             }
             .no-print-bar {
                 display: none !important;
             }
             .label-container {
-                border: 2px solid #000;
-                width: 100mm;
-                height: 148mm;
-                padding: 4mm;
-                margin-bottom: 0;
-                page-break-inside: avoid;
+                border: 2px solid #000 !important;
+                width: 100mm !important;
+                height: 147mm !important;
+                max-height: 147mm !important;
+                padding: 3.5mm 4mm !important;
+                margin: 0 !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                overflow: hidden !important;
+            }
+            .page-break {
+                page-break-after: always !important;
+                break-after: page !important;
             }
         }
     </style>
