@@ -331,12 +331,12 @@ Route::delete('/superadmin/artikels/{artikel}/hapus-foto', [SuperArtikelControll
     Route::get('/rekap-retur', [RekapReturController::class, 'index'])->name('rekap.retur');
 
     // Route tambahan untuk export PDF
-    Route::get('superadmin/orders/export-pdf', [SuperOrderController::class, 'exportPdf'])->name('orders.exportPdf');
-    Route::get('superadmin/orders/{order}/print-invoice', [SuperOrderController::class, 'printInvoice'])->name('orders.print-invoice');
-    Route::get('superadmin/orders/export-excel', [SuperOrderController::class, 'exportExcel'])->name('orders.exportExcel');
-    Route::post('superadmin/orders/{id}/jnt-generate', [SuperOrderController::class, 'generateJntAwb'])->name('orders.jnt-generate');
-    Route::post('superadmin/orders/{id}/jnt-cancel', [SuperOrderController::class, 'cancelJntAwb'])->name('orders.jnt-cancel');
-    Route::get('superadmin/orders/{id}/jnt-label', [SuperOrderController::class, 'printShippingLabel'])->name('orders.jnt-label');
+    Route::get('orders/export-pdf', [SuperOrderController::class, 'exportPdf'])->name('orders.exportPdf');
+    Route::get('orders/{order}/print-invoice', [SuperOrderController::class, 'printInvoice'])->name('orders.print-invoice');
+    Route::get('orders/export-excel', [SuperOrderController::class, 'exportExcel'])->name('orders.exportExcel');
+    Route::post('orders/{id}/jnt-generate', [SuperOrderController::class, 'generateJntAwb'])->name('orders.jnt-generate');
+    Route::post('orders/{id}/jnt-cancel', [SuperOrderController::class, 'cancelJntAwb'])->name('orders.jnt-cancel');
+    Route::get('orders/{id}/jnt-label', [SuperOrderController::class, 'printShippingLabel'])->name('orders.jnt-label');
     
     // BENAR (Hapus duplikasi)
     Route::get('/users/{user}/upgrade', [SuperUsersController::class, 'showUpgradeForm'])->name('users.upgrade.form');

@@ -275,7 +275,12 @@
                                 <div class="text-xs text-gray-500">{{ $order->created_at->format('d M Y, H:i') }}</div>
                             </td>
                             <td class="px-6 py-4">
-                                <span class="font-medium">{{ $order->invoice_number }}</span>
+                                <span class="font-medium text-gray-900 block">{{ $order->invoice_number }}</span>
+                                @if(!empty($order->no_resi))
+                                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full mt-1 shadow-xs">
+                                        <i class="fas fa-truck text-red-600"></i> J&T: {{ $order->no_resi }}
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-6 py-4">
                                 <div class="text-xs max-w-xs overflow-hidden">
@@ -504,6 +509,51 @@
                     </div>
                 </div>
                 
+                <!-- Informasi Ekspedisi & Pengiriman J&T Express -->
+                <div class="mt-6 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-4 shadow-sm">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-red-100">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-red-600 text-white font-black text-xs px-2.5 py-1.5 rounded-md tracking-wider">
+                                J&T EXPRESS
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-sm">Pengiriman & Logistik Resmi</h4>
+                                <p class="text-xs text-gray-600">Layanan Reguler (EZ) &bull; Tarif Flat VIP J&T Jawara</p>
+                            </div>
+                        </div>
+                        <div>
+                            @if(!empty($order->no_resi))
+                                <span class="bg-green-100 text-green-800 border border-green-300 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
+                                    <i class="fas fa-check-circle text-green-600"></i> Resi Aktif: {{ $order->no_resi }}
+                                </span>
+                            @else
+                                <span class="bg-yellow-100 text-yellow-800 border border-yellow-300 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
+                                    <i class="fas fa-clock text-yellow-600"></i> Resi Belum Diterbitkan
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-xs">
+                        <div>
+                            <span class="text-gray-500 block">No. Resi (AWB):</span>
+                            <span class="font-bold text-gray-800 text-sm select-all">{{ $order->no_resi ?? '-' }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block">Kode Sortir (DesCode):</span>
+                            <span class="font-bold text-gray-800">{{ $order->jnt_des_code ?? '-' }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block">Estimasi Berat Total:</span>
+                            <span class="font-bold text-gray-800">{{ ceil($order->total_weight_kg ?? 1) }} Kg</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block">Status Pengiriman:</span>
+                            <span class="font-semibold text-gray-800">{{ $order->shipping_status ?? ($order->no_resi ? 'Dalam Pengiriman' : 'Menunggu Diproses') }}</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Produk yang Dipesan -->
                 <div class="mt-6">
                     <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -555,28 +605,54 @@
                 </div>
                 
                 <!-- Action Buttons -->
-                <div class="flex justify-between mt-6">
-                    <!-- Tombol Kiri (Update Status & Cetak) -->
-                    <div class="flex gap-2">
-                        <!-- Tombol Cetak Invoice -->
-                        <a href="{{ route('superadmin.orders.print-invoice', $order->id) }}" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center">
-                            <i class="fas fa-print mr-1"></i> Cetak Nota
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mt-6">
+                    <!-- Tombol Kiri (Update Status, Resi J&T & Cetak) -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Tombol Cetak Nota -->
+                        <a href="{{ route('superadmin.orders.print-invoice', $order->id) }}" target="_blank" class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center text-xs font-semibold">
+                            <i class="fas fa-print mr-1.5"></i> Cetak Nota
                         </a>
+
+                        @if(!empty($order->no_resi))
+                            <!-- Tombol Cetak Label Thermal J&T -->
+                            <a href="{{ route('superadmin.orders.jnt-label', $order->id) }}" target="_blank" class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center text-xs font-semibold shadow-sm">
+                                <i class="fas fa-barcode mr-1.5"></i> 🖨️ Cetak Label J&T (Thermal)
+                            </a>
+                            <!-- Tombol Lacak J&T -->
+                            <a href="{{ \App\Services\JntService::getTrackingUrl($order->no_resi) }}" target="_blank" class="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center text-xs font-semibold">
+                                <i class="fas fa-truck mr-1.5"></i> Lacak J&T
+                            </a>
+                            <!-- Tombol Batal Resi J&T -->
+                            <form action="{{ route('superadmin.orders.jnt-cancel', $order->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan resi J&T ini?')" class="inline">
+                                @csrf
+                                <button type="submit" class="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition flex items-center text-xs font-semibold">
+                                    <i class="fas fa-ban mr-1"></i> Batal Resi J&T
+                                </button>
+                            </form>
+                        @elseif($order->status !== 'canceled')
+                            <!-- Tombol Generate Resi J&T Otomatis -->
+                            <form action="{{ route('superadmin.orders.jnt-generate', $order->id) }}" method="POST" onsubmit="return confirm('Terbitkan nomor resi resmi J&T Express untuk order ini sekarang?')" class="inline">
+                                @csrf
+                                <button type="submit" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-md hover:from-red-700 hover:to-red-800 transition flex items-center text-xs font-bold shadow-md">
+                                    <i class="fas fa-shipping-fast mr-1.5"></i> 🚀 Buat Resi J&T (Auto AWB)
+                                </button>
+                            </form>
+                        @endif
                         
                         @if($order->status == 'pending')
-                        <button class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center">
+                        <button class="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center text-xs font-semibold">
                             <i class="fas fa-check-circle mr-1"></i> Konfirmasi Pembayaran
                         </button>
                         @endif
                         
                         @if($order->status == 'paid')
-                        <button class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center">
+                        <button class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center text-xs font-semibold">
                             <i class="fas fa-shipping-fast mr-1"></i> Kirim Pesanan
                         </button>
                         @endif
                         
                         @if($order->status == 'pending')
-                        <button class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center">
+                        <button class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center text-xs font-semibold">
                             <i class="fas fa-times-circle mr-1"></i> Batalkan Pesanan
                         </button>
                         @endif

@@ -3,220 +3,348 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Label Pengiriman J&T Express - {{ $order->invoice_number }}</title>
+    <title>Label Thermal J&T - {{ $order->invoice_number }} ({{ $order->no_resi ?? 'Draft' }})</title>
+    <!-- JsBarcode Library for crisp vector Code128 barcodes -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     <style>
         @page {
             size: 100mm 150mm;
             margin: 0;
         }
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            margin: 0;
-            padding: 8mm;
-            background: #fff;
-            color: #111;
-            font-size: 11px;
+        * {
             box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 4mm;
+            background: #f1f5f9;
+            color: #000;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .no-print-bar {
+            width: 100mm;
+            max-width: 100%;
+            background: #1e293b;
+            color: #fff;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .btn-print {
+            background: #16a34a;
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-print:hover {
+            background: #15803d;
+        }
+        .btn-close {
+            background: #475569;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .btn-close:hover {
+            background: #334155;
         }
         .label-container {
+            width: 100mm;
+            min-height: 146mm;
+            background: #fff;
             border: 2px solid #000;
-            padding: 6px;
-            height: 100%;
+            padding: 5mm 4mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
+        /* Header */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 2px solid #000;
-            padding-bottom: 6px;
-            margin-bottom: 6px;
+            padding-bottom: 5px;
+            margin-bottom: 4px;
         }
-        .jnt-logo {
-            font-size: 24px;
+        .brand-jnt {
+            font-size: 26px;
             font-weight: 900;
-            color: #d32f2f;
-            letter-spacing: -1px;
+            color: #dc2626;
+            letter-spacing: -1.5px;
+            line-height: 1;
         }
-        .jnt-logo span {
+        .brand-jnt span {
             font-size: 13px;
-            font-weight: bold;
-            color: #333;
+            font-weight: 800;
+            color: #000;
             letter-spacing: 0;
             margin-left: 4px;
         }
-        .service-badge {
+        .header-badges {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .badge-ez {
             background: #000;
             color: #fff;
             font-size: 18px;
-            font-weight: bold;
-            padding: 4px 12px;
+            font-weight: 900;
+            padding: 2px 10px;
             border-radius: 4px;
-            text-align: center;
+            line-height: 1.1;
         }
-        .barcode-section {
+        .badge-cod {
+            background: #fff;
+            color: #000;
+            border: 2px solid #000;
+            font-size: 11px;
+            font-weight: 900;
+            padding: 3px 6px;
+            border-radius: 4px;
+        }
+        /* Barcode Area */
+        .barcode-area {
             text-align: center;
             border-bottom: 2px solid #000;
-            padding: 8px 0;
+            padding: 4px 0 6px 0;
         }
-        .awb-code {
-            font-size: 20px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            margin-top: 4px;
-        }
-        .des-code {
-            font-size: 22px;
-            font-weight: 900;
-            background: #f0f0f0;
-            padding: 4px;
-            display: inline-block;
-            border: 1px dashed #000;
-            margin-top: 4px;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            border-bottom: 1.5px solid #000;
-            padding: 6px 0;
-            font-size: 10px;
-        }
-        .info-grid div {
-            padding: 2px 4px;
-        }
-        .address-box {
-            border-bottom: 1.5px solid #000;
-            padding: 6px 0;
-        }
-        .box-title {
-            font-size: 9px;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #555;
+        .barcode-svg-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
             margin-bottom: 2px;
         }
-        .person-name {
-            font-size: 13px;
+        .barcode-svg-wrapper svg {
+            max-width: 92mm;
+            height: 48px;
+        }
+        .awb-text {
+            font-size: 19px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            margin-top: 1px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .routing-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+            padding: 3px 8px;
+            background: #f3f4f6;
+            border: 1.5px solid #000;
+            border-radius: 4px;
+        }
+        .sort-code {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+        .origin-dest {
+            font-size: 11px;
+            font-weight: bold;
+            text-align: right;
+        }
+        /* Grid Order Info */
+        .order-meta-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            border-bottom: 1.5px solid #000;
+            padding: 4px 0;
+            font-size: 9.5px;
+            line-height: 1.35;
+        }
+        /* Addresses */
+        .address-box {
+            border-bottom: 1.5px solid #000;
+            padding: 5px 0;
+            line-height: 1.25;
+        }
+        .address-title {
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .address-name {
+            font-size: 12.5px;
+            font-weight: 900;
+        }
+        .address-phone {
+            font-size: 11px;
             font-weight: bold;
         }
-        .person-phone {
-            font-size: 11px;
+        .address-detail {
+            font-size: 10px;
+            margin-top: 2px;
+            word-break: break-word;
+        }
+        /* Item details */
+        .package-contents {
+            flex-grow: 1;
+            padding-top: 4px;
+        }
+        .contents-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9px;
+        }
+        .contents-table th {
+            text-align: left;
+            border-bottom: 1px solid #000;
+            padding: 2px 0;
+            font-weight: 800;
+        }
+        .contents-table td {
+            padding: 2px 0;
+            vertical-align: top;
+        }
+        /* Footer */
+        .label-footer {
+            margin-top: auto;
+            border-top: 1.5px dashed #000;
+            padding-top: 4px;
+            text-align: center;
+            font-size: 8px;
             font-weight: bold;
             color: #222;
         }
-        .person-addr {
-            font-size: 11px;
-            line-height: 1.3;
-            margin-top: 2px;
-        }
-        .items-section {
-            padding-top: 6px;
-            flex-grow: 1;
-        }
-        .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 9.5px;
-        }
-        .items-table th {
-            text-align: left;
-            border-bottom: 1px solid #999;
-            padding: 2px 0;
-        }
-        .items-table td {
-            padding: 2px 0;
-        }
-        .footer-note {
-            margin-top: auto;
-            border-top: 1px dashed #666;
-            padding-top: 4px;
-            text-align: center;
-            font-size: 8.5px;
-            color: #555;
-        }
         @media print {
             body {
+                background: #fff;
                 padding: 0;
+                margin: 0;
             }
-            .no-print {
+            .no-print-bar {
                 display: none !important;
+            }
+            .label-container {
+                border: 2px solid #000;
+                width: 100mm;
+                height: 148mm;
+                padding: 4mm;
+                page-break-after: avoid;
+                page-break-inside: avoid;
             }
         }
     </style>
 </head>
 <body>
 
-    <div class="no-print" style="background: #f8fafc; padding: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
-        <button onclick="window.print()" style="background: #16782d; color: white; border: none; padding: 10px 24px; font-size: 14px; font-weight: bold; border-radius: 6px; cursor: pointer;">
-            🖨️ CETAK LABEL THERMAL (100x150mm)
-        </button>
-        <span style="margin-left: 12px; font-size: 12px; color: #64748b;">Gunakan opsi cetak 100% / Scale Fit Paper.</span>
+    <!-- TOOLBAR NON-PRINT -->
+    <div class="no-print-bar">
+        <div>
+            <div style="font-weight: bold; font-size: 13px;">Format Thermal J&T (100x150 mm)</div>
+            <div style="font-size: 10px; color: #94a3b8;">Pastikan printer memilih ukuran 100x150mm / 4x6 inch</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn-print" onclick="window.print()">
+                🖨️ Cetak Ulang
+            </button>
+            <button class="btn-close" onclick="window.close()">
+                ✕ Tutup
+            </button>
+        </div>
     </div>
 
+    <!-- WADAH LABEL THERMAL 100x150 MM -->
     <div class="label-container">
-        <!-- HEADER LOGO & LAYANAN -->
+        <!-- HEADER -->
         <div class="header">
-            <div class="jnt-logo">
+            <div class="brand-jnt">
                 J&T<span>EXPRESS</span>
             </div>
-            <div class="service-badge">
-                EZ
+            <div class="header-badges">
+                <span class="badge-ez">EZ</span>
+                <span class="badge-cod">NON-COD</span>
             </div>
         </div>
 
         <!-- BARCODE & NOMOR RESI J&T -->
-        <div class="barcode-section">
-            <div style="font-size: 10px; color: #444;">NOMOR RESI (AWB)</div>
-            <div class="awb-code">{{ $order->no_resi ?? 'BELUM ADA RESI' }}</div>
-            @if(!empty($order->jnt_des_code))
-                <div class="des-code">{{ $order->jnt_des_code }}</div>
-            @endif
+        <div class="barcode-area">
+            <div class="barcode-svg-wrapper">
+                <svg id="barcode-resi"></svg>
+            </div>
+            <div class="awb-text">{{ $order->no_resi ?? 'DRAFT-BELUM-ADA-RESI' }}</div>
+
+            <!-- KODE SORTIR / ROUTING -->
+            <div class="routing-box">
+                <div class="sort-code">
+                    {{ $order->jnt_des_code ?? 'SUB' }}
+                </div>
+                <div class="origin-dest">
+                    <span>ASAL: <strong>{{ config('jnt.shipper.origin_code', 'SUB') }}</strong></span><br>
+                    <span>LAYANAN: <strong>REGULER (EZ)</strong></span>
+                </div>
+            </div>
         </div>
 
-        <!-- INFO PESANAN & BERAT -->
-        <div class="info-grid">
+        <!-- DETAIL ORDER & BERAT -->
+        <div class="order-meta-grid">
             <div>
                 <strong>No. Invoice:</strong> {{ $order->invoice_number }}<br>
-                <strong>Tgl Order:</strong> {{ $order->created_at->format('d/m/Y') }}
+                <strong>Tgl Order:</strong> {{ $order->created_at->format('d/m/Y H:i') }}
             </div>
             <div style="text-align: right;">
-                <strong>Berat:</strong> {{ ceil($order->total_weight_kg ?? 1) }} Kg<br>
-                <strong>COD:</strong> <span style="color: #b91c1c; font-weight: bold;">NON-COD</span>
+                <strong>Berat Total:</strong> <span style="font-size: 12px; font-weight: 900;">{{ ceil($order->total_weight_kg ?? 1) }} Kg</span><br>
+                <strong>Ongkir:</strong> Rp {{ number_format($order->shipping_cost ?? 0, 0, ',', '.') }}
             </div>
         </div>
 
         <!-- ALAMAT PENERIMA -->
         <div class="address-box">
-            <div class="box-title">PENERIMA:</div>
-            <div class="person-name">{{ $order->user->nama_lengkap }}</div>
-            <div class="person-phone">{{ $order->user->membership->no_hp ?? $order->user->no_telp ?? '-' }}</div>
-            <div class="person-addr">{{ $order->alamat }}</div>
+            <div class="address-title">PENERIMA:</div>
+            <div class="address-name">{{ $order->user->nama_lengkap }}</div>
+            <div class="address-phone">Telp: {{ $order->user->membership->no_hp ?? $order->user->no_telp ?? '-' }}</div>
+            <div class="address-detail">{{ $order->alamat }}</div>
         </div>
 
         <!-- ALAMAT PENGIRIM -->
         <div class="address-box">
-            <div class="box-title">PENGIRIM:</div>
-            <div class="person-name">{{ $branchSetting->nama_pt ?? config('jnt.shipper.name') }}</div>
-            <div class="person-phone">{{ $branchSetting->no_telp ?? config('jnt.shipper.phone') }}</div>
-            <div class="person-addr">{{ $branchSetting->alamat ?? config('jnt.shipper.address') }}</div>
+            <div class="address-title">PENGIRIM:</div>
+            <div class="address-name">{{ $branchSetting->nama_pt ?? config('jnt.shipper.name') }}</div>
+            <div class="address-phone">Telp: {{ $branchSetting->no_telp ?? config('jnt.shipper.phone') }}</div>
+            <div class="address-detail">{{ $branchSetting->alamat ?? config('jnt.shipper.address') }}</div>
         </div>
 
-        <!-- ISI PAKET -->
-        <div class="items-section">
-            <div class="box-title">ISI PAKET:</div>
-            <table class="items-table">
+        <!-- ISI PAKET (RINGKASAN) -->
+        <div class="package-contents">
+            <div class="address-title">ISI PAKET:</div>
+            <table class="contents-table">
                 <thead>
                     <tr>
-                        <th>Produk</th>
-                        <th style="text-align: right;">Qty</th>
+                        <th>Nama Produk</th>
+                        <th style="text-align: right; width: 45px;">Jumlah</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($order->orderItems as $item)
                         <tr>
-                            <td>{{ Str::limit($item->product_name, 35) }}</td>
+                            <td>{{ Str::limit($item->product_name, 38) }}</td>
                             <td style="text-align: right; font-weight: bold;">{{ $item->quantity }}x</td>
                         </tr>
                     @endforeach
@@ -224,11 +352,38 @@
             </table>
         </div>
 
-        <!-- FOOTER -->
-        <div class="footer-note">
-            PT WOWIN PURNOMO PUTERA &bull; Dokumen Pengiriman Resmi Ekosistem My Wowin
+        <!-- FOOTER RESMI -->
+        <div class="label-footer">
+            PT WOWIN PURNOMO PUTERA &bull; Dokumen Resmi Ekosistem My Wowin &bull; Dicetak: {{ now()->format('d/m/Y H:i') }}
         </div>
     </div>
 
+    <!-- SKRIP GENERATOR BARCODE & AUTO-PRINT -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var resiNumber = "{{ $order->no_resi }}";
+            if (!resiNumber) {
+                resiNumber = "{{ $order->invoice_number }}";
+            }
+
+            try {
+                JsBarcode("#barcode-resi", resiNumber, {
+                    format: "CODE128",
+                    width: 2.1,
+                    height: 48,
+                    displayValue: false,
+                    margin: 0,
+                    lineColor: "#000000"
+                });
+            } catch (e) {
+                console.error("Gagal merender barcode:", e);
+            }
+
+            // Memicu jendela cetak printer thermal secara otomatis
+            setTimeout(function() {
+                window.print();
+            }, 650);
+        });
+    </script>
 </body>
 </html>
