@@ -301,11 +301,25 @@
                                 <span>{{ \Carbon\Carbon::parse($order->paid_at)->format('d M Y, H:i') }}</span>
                             </td>
                             <td class="px-6 py-4">
-                               <div class="flex justify-center items-center gap-2">
-                                <div x-data="{ open: false }" class="relative">
-                                    <button x-on:click="open = true" class="px-3 py-1.5 text-white text-xs bg-[#16782d] rounded-md hover:bg-[#135e24] transition flex items-center">
-                                        <i class="fas fa-eye mr-1"></i> Detail
-                                    </button>
+                                <div class="flex justify-center items-center gap-1.5">
+                                    @if(!empty($order->no_resi))
+                                        <!-- Tombol Cepat Cetak Label Thermal J&T -->
+                                        <a href="{{ route('admin.orders.jnt-label', $order->id) }}" target="_blank" class="px-2.5 py-1.5 text-white text-xs bg-emerald-600 rounded-md hover:bg-emerald-700 transition flex items-center shadow-xs font-semibold" title="Cetak Label Thermal J&T">
+                                            <i class="fas fa-barcode mr-1"></i> Label
+                                        </a>
+                                    @elseif($order->status !== 'canceled')
+                                        <!-- Tombol Cepat Request Pick Up J&T -->
+                                        <form action="{{ route('admin.orders.jnt-generate', $order->id) }}" method="POST" onsubmit="return confirm('Request pick up kurir & terbitkan resi resmi J&T Express untuk pesanan #{{ $order->invoice_number }} sekarang?')" class="inline">
+                                            @csrf
+                                            <button type="submit" class="px-2.5 py-1.5 text-white text-xs bg-red-600 hover:bg-red-700 rounded-md transition flex items-center shadow-xs font-bold whitespace-nowrap" title="Request Pick Up & Terbitkan Resi J&T">
+                                                <i class="fas fa-truck-loading mr-1"></i> Pick Up J&T
+                                            </button>
+                                        </form>
+                                    @endif
+                                    <div x-data="{ open: false }" class="relative">
+                                        <button x-on:click="open = true" class="px-3 py-1.5 text-white text-xs bg-[#16782d] rounded-md hover:bg-[#135e24] transition flex items-center">
+                                            <i class="fas fa-eye mr-1"></i> Detail
+                                        </button>
     
                                     <template x-if="open">
                                                 <div class="fixed inset-0 z-[100] overflow-y-auto" x-cloak>
@@ -732,10 +746,10 @@
                             </form>
                         @elseif($order->status !== 'canceled')
                             <!-- Tombol Generate Resi J&T Otomatis -->
-                            <form action="{{ route('admin.orders.jnt-generate', $order->id) }}" method="POST" onsubmit="return confirm('Terbitkan nomor resi resmi J&T Express untuk order ini sekarang?')" class="inline">
+                            <form action="{{ route('admin.orders.jnt-generate', $order->id) }}" method="POST" onsubmit="return confirm('Request pick up kurir & terbitkan nomor resi resmi J&T Express untuk order ini sekarang?')" class="inline">
                                 @csrf
                                 <button type="submit" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-md hover:from-red-700 hover:to-red-800 transition flex items-center text-xs font-bold shadow-md">
-                                    <i class="fas fa-shipping-fast mr-1.5"></i> 🚀 Buat Resi J&T (Auto AWB)
+                                    <i class="fas fa-truck-loading mr-1.5"></i> 📦 Request Pick Up & Buat Resi J&T
                                 </button>
                             </form>
                         @endif

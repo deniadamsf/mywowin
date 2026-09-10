@@ -113,6 +113,32 @@
             </div>
         </div>
 
+        <!-- Quick Status Tabs -->
+        <div class="flex flex-wrap items-center gap-2 mb-4 pb-3 border-b border-gray-100">
+            <a href="{{ route('superadmin.orders.index') }}" 
+               class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition {{ !request('payment_status') && !request('status') ? 'bg-purple-700 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                Semua Pesanan
+            </a>
+            <a href="{{ route('superadmin.orders.index', ['payment_status' => 'waiting_confirmation']) }}" 
+               class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {{ request('payment_status') === 'waiting_confirmation' ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-300' : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100' }}">
+                <i class="fas fa-clock"></i>
+                <span>Menunggu Konfirmasi Bayar</span>
+                @if(($pendingVerificationsCount ?? 0) > 0)
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ request('payment_status') === 'waiting_confirmation' ? 'bg-white text-amber-700' : 'bg-amber-500 text-white' }}">
+                        {{ $pendingVerificationsCount }}
+                    </span>
+                @endif
+            </a>
+            <a href="{{ route('superadmin.orders.index', ['payment_status' => 'paid']) }}" 
+               class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition {{ request('payment_status') === 'paid' ? 'bg-green-700 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                Sudah Dibayar (Lunas)
+            </a>
+            <a href="{{ route('superadmin.orders.index', ['payment_status' => 'pending']) }}" 
+               class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition {{ request('payment_status') === 'pending' ? 'bg-yellow-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                Belum Dibayar
+            </a>
+        </div>
+
         <!-- Filter & Export -->
         <div class="flex justify-between mb-4">
            <!-- Replace existing filter section with this improved version -->
@@ -190,8 +216,11 @@
             <select name="payment_status" onchange="this.form.submit()" 
                 class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-700 focus:border-purple-700">
                 <option value="">Semua Status Pembayaran</option>
+                <option value="waiting_confirmation" {{ request('payment_status') == 'waiting_confirmation' ? 'selected' : '' }}>Menunggu Konfirmasi ({{ $pendingVerificationsCount ?? 0 }})</option>
                 <option value="pending" {{ request('payment_status') == 'pending' ? 'selected' : '' }}>Belum Dibayar</option>
                 <option value="paid" {{ request('payment_status') == 'paid' ? 'selected' : '' }}>Sudah Dibayar</option>
+                <option value="rejected" {{ request('payment_status') == 'rejected' ? 'selected' : '' }}>Bukti Ditolak</option>
+                <option value="expired" {{ request('payment_status') == 'expired' ? 'selected' : '' }}>Kadaluarsa (Expired)</option>
             </select>
         </form>
 
@@ -206,6 +235,13 @@
         <a href="{{ route('superadmin.orders.exportExcel') }}{{ request()->getQueryString() ? '?'.request()->getQueryString() : '' }}" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition flex items-center">
             <i class="fas fa-file-excel mr-2"></i> Export Excel
         </a>
+
+        <form action="{{ route('superadmin.orders.cleanup-proofs') }}" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin membersihkan semua berkas bukti transfer lama yang berumur lebih dari 6 bulan? Berkas foto fisik akan dihapus dari storage untuk menghemat ruang disk, tetapi data transaksi & laporan pesanan tetap aman.');">
+            @csrf
+            <button type="submit" class="bg-gray-700 text-white px-3.5 py-2 rounded-lg text-sm hover:bg-gray-800 transition flex items-center shadow-sm" title="Bersihkan foto bukti transfer yang usianya lebih dari 6 bulan">
+                <i class="fas fa-broom mr-2 text-yellow-400"></i> Bersihkan Bukti > 6 Bln
+            </button>
+        </form>
     </div>
 </div>
             
@@ -226,7 +262,7 @@
                     @csrf
                     <input type="hidden" name="order_ids" id="bulk-resi-ids">
                     <button type="submit" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg text-xs font-bold hover:from-red-700 hover:to-red-800 transition flex items-center shadow-md">
-                        <i class="fas fa-shipping-fast mr-1.5"></i> 🚀 Buat Resi Masal (Auto AWB)
+                        <i class="fas fa-truck-loading mr-1.5"></i> 📦 Request Pick Up Masal (J&T)
                     </button>
                 </form>
 
@@ -300,14 +336,37 @@
                                 <input type="checkbox" name="order_ids[]" value="{{ $order->id }}" class="order-check rounded text-purple-700 focus:ring-purple-500 w-4 h-4 cursor-pointer" onchange="updateBulkBar()">
                             </td>
                             <td class="px-6 py-4">
-                                <div class="flex justify-center items-center">
+                                <div class="flex flex-col justify-center items-center">
                                     @if (!empty($order->bukti_transfer)) 
-                                        <img src="{{ asset('storage/' . $order->bukti_transfer) }}" 
-                                             class="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm" 
-                                             alt="{{ $order->bukti_transfer}}">
+                                        <a href="{{ asset('storage/' . $order->bukti_transfer) }}" target="_blank" class="block group relative">
+                                            <img src="{{ asset('storage/' . $order->bukti_transfer) }}" 
+                                                 class="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm group-hover:scale-105 transition-transform" 
+                                                 alt="{{ $order->bukti_transfer}}">
+                                            <div class="absolute inset-0 bg-black/30 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                                                <i class="fas fa-search-plus"></i>
+                                            </div>
+                                        </a>
+                                        @if($order->payment_status === 'waiting_confirmation' || ($order->status === 'pending' && $order->payment_status !== 'paid'))
+                                            <span class="mt-1 px-1.5 py-0.5 text-[9px] font-extrabold bg-amber-500 text-white rounded shadow-xs uppercase tracking-wider animate-pulse">
+                                                Perlu Verifikasi
+                                            </span>
+                                        @elseif($order->payment_status === 'paid')
+                                            <span class="mt-1 px-1.5 py-0.5 text-[9px] font-bold bg-green-600 text-white rounded shadow-xs">
+                                                Lunas
+                                            </span>
+                                        @elseif($order->payment_status === 'rejected')
+                                            <span class="mt-1 px-1.5 py-0.5 text-[9px] font-bold bg-red-600 text-white rounded shadow-xs">
+                                                Ditolak
+                                            </span>
+                                        @elseif($order->payment_status === 'expired')
+                                            <span class="mt-1 px-1.5 py-0.5 text-[9px] font-bold bg-gray-500 text-white rounded shadow-xs">
+                                                Kadaluarsa
+                                            </span>
+                                        @endif
                                     @else
-                                        <div class="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200">
-                                             <i class="fas fa-image text-gray-400 text-xl"></i>
+                                        <div class="w-16 h-16 flex flex-col items-center justify-center bg-gray-100 rounded-lg border border-gray-200 text-gray-400">
+                                            <i class="fas fa-image text-xl mb-1"></i>
+                                            <span class="text-[9px]">Kosong</span>
                                         </div>
                                     @endif
                                 </div>
@@ -346,12 +405,27 @@
                                 <div class="flex justify-center items-center gap-1.5">
                                     @if(!empty($order->no_resi))
                                         <!-- Tombol Cepat Cetak Label Thermal J&T -->
-                                        <a href="{{ route('superadmin.orders.jnt-label', $order->id) }}" target="_blank" class="px-2.5 py-1.5 text-white text-xs bg-red-600 rounded-md hover:bg-red-700 transition flex items-center shadow-xs font-semibold" title="Cetak Label Thermal J&T">
+                                        <a href="{{ route('superadmin.orders.jnt-label', $order->id) }}" target="_blank" class="px-2.5 py-1.5 text-white text-xs bg-emerald-600 rounded-md hover:bg-emerald-700 transition flex items-center shadow-xs font-semibold" title="Cetak Label Thermal J&T">
                                             <i class="fas fa-barcode mr-1"></i> Label
                                         </a>
+                                    @elseif($order->status !== 'canceled')
+                                        <!-- Tombol Cepat Request Pick Up J&T -->
+                                        <form action="{{ route('superadmin.orders.jnt-generate', $order->id) }}" method="POST" onsubmit="return confirm('Request pick up kurir & terbitkan resi resmi J&T Express untuk pesanan #{{ $order->invoice_number }} sekarang?')" class="inline">
+                                            @csrf
+                                            <button type="submit" class="px-2.5 py-1.5 text-white text-xs bg-red-600 hover:bg-red-700 rounded-md transition flex items-center shadow-xs font-bold whitespace-nowrap" title="Request Pick Up & Terbitkan Resi J&T">
+                                                <i class="fas fa-truck-loading mr-1"></i> Pick Up J&T
+                                            </button>
+                                        </form>
+                                    @endif
+                                    @if($order->payment_status === 'waiting_confirmation' || ($order->status === 'pending' && !empty($order->bukti_transfer) && $order->payment_status !== 'paid'))
+                                        <div x-data="{ openVerify: false }" class="inline-block">
+                                            <button x-on:click="$dispatch('open-detail-{{ $order->id }}')" class="px-2.5 py-1.5 text-white text-xs bg-amber-500 hover:bg-amber-600 rounded-md transition flex items-center font-bold shadow-xs animate-pulse" title="Verifikasi Pembayaran">
+                                                <i class="fas fa-check-double mr-1"></i> Verifikasi
+                                            </button>
+                                        </div>
                                     @endif
                                     <!-- Detail Button -->
-<div x-data="{ open: false }" class="relative">
+<div x-data="{ open: false }" x-on:open-detail-{{ $order->id }}.window="open = true" class="relative">
     <button x-on:click="open = true" class="px-3 py-1.5 text-white text-xs bg-purple-700 rounded-md hover:bg-purple-800 transition flex items-center">
         <i class="fas fa-eye mr-1"></i> Detail
     </button>
@@ -522,15 +596,35 @@
                         <div class="p-4 space-y-4">
                             <!-- Bukti Transfer -->
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-2">Bukti Transfer</label>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-xs font-bold text-gray-700">Bukti Transfer</label>
+                                    @if($order->payment_status === 'waiting_confirmation' || ($order->status === 'pending' && !empty($order->bukti_transfer) && $order->payment_status !== 'paid'))
+                                        <span class="px-2 py-0.5 text-[10px] font-extrabold bg-amber-500 text-white rounded-full animate-pulse">
+                                            Menunggu Verifikasi
+                                        </span>
+                                    @elseif($order->payment_status === 'paid')
+                                        <span class="px-2 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded-full">
+                                            Lunas / Disetujui
+                                        </span>
+                                    @elseif($order->payment_status === 'rejected')
+                                        <span class="px-2 py-0.5 text-[10px] font-bold bg-red-600 text-white rounded-full">
+                                            Ditolak
+                                        </span>
+                                    @endif
+                                </div>
                                 <div class="flex justify-center">
-                                    <div class="w-full h-40 rounded-lg overflow-hidden border border-gray-200 shadow-sm flex items-center justify-center bg-gray-50">
+                                    <div class="w-full h-48 rounded-lg overflow-hidden border border-gray-200 shadow-sm flex items-center justify-center bg-gray-50 relative group">
                                         @if (!empty($order->bukti_transfer)) 
                                             <a href="{{ asset('storage/' . $order->bukti_transfer) }}" target="_blank" class="w-full h-full block">
                                                 <img src="{{ asset('storage/' . $order->bukti_transfer) }}" 
                                                     class="w-full h-full object-contain hover:scale-105 transition-transform" 
                                                     alt="Bukti Transfer">
                                             </a>
+                                            <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded">
+                                                <a href="{{ asset('storage/' . $order->bukti_transfer) }}" target="_blank" class="text-white hover:underline flex items-center gap-1">
+                                                    <i class="fas fa-external-link-alt"></i> Buka Penuh
+                                                </a>
+                                            </div>
                                         @else
                                             <div class="text-center text-gray-400">
                                                 <i class="fas fa-image text-3xl mb-2"></i>
@@ -539,6 +633,42 @@
                                         @endif
                                     </div>
                                 </div>
+
+                                @if(!empty($order->rejection_reason))
+                                    <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                                        <strong>Alasan Penolakan:</strong> {{ $order->rejection_reason }}
+                                    </div>
+                                @endif
+
+                                <!-- Action Verifikasi Pembayaran -->
+                                @if(!empty($order->bukti_transfer) && $order->payment_status !== 'paid')
+                                    <div class="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg" x-data="{ showRejectInput: false }">
+                                        <p class="text-xs font-bold text-purple-900 mb-2">Aksi Verifikasi Pembayaran:</p>
+                                        <div class="flex items-center gap-2">
+                                            <form action="{{ route('superadmin.orders.confirm-payment', $order->id) }}" method="POST" class="flex-1" onsubmit="return confirm('Konfirmasi dan setujui pembayaran pesanan #{{ $order->invoice_number }} senilai Rp {{ number_format($order->total, 0, ',', '.') }}?')">
+                                                @csrf
+                                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                                                    <i class="fas fa-check-circle"></i> Setujui Pembayaran
+                                                </button>
+                                            </form>
+                                            <button type="button" @click="showRejectInput = !showRejectInput" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                                                <i class="fas fa-times-circle"></i> Tolak
+                                            </button>
+                                        </div>
+
+                                        <!-- Form Input Alasan Penolakan -->
+                                        <div x-show="showRejectInput" x-cloak class="mt-3 pt-3 border-t border-purple-200">
+                                            <form action="{{ route('superadmin.orders.reject-payment', $order->id) }}" method="POST">
+                                                @csrf
+                                                <label class="block text-[11px] font-semibold text-gray-700 mb-1">Alasan Penolakan (akan tampil ke pembeli):</label>
+                                                <textarea name="reason" rows="2" required placeholder="Contoh: Nominal transfer kurang / Rekening pengirim tidak cocok / Gambar buram..." class="w-full text-xs p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-red-500 mb-2"></textarea>
+                                                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 rounded text-xs transition">
+                                                    Kirim Penolakan Bukti
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                             
                             <!-- Catatan -->
@@ -678,10 +808,10 @@
                             </form>
                         @elseif($order->status !== 'canceled')
                             <!-- Tombol Generate Resi J&T Otomatis -->
-                            <form action="{{ route('superadmin.orders.jnt-generate', $order->id) }}" method="POST" onsubmit="return confirm('Terbitkan nomor resi resmi J&T Express untuk order ini sekarang?')" class="inline">
+                            <form action="{{ route('superadmin.orders.jnt-generate', $order->id) }}" method="POST" onsubmit="return confirm('Request pick up kurir & terbitkan nomor resi resmi J&T Express untuk order ini sekarang?')" class="inline">
                                 @csrf
                                 <button type="submit" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-md hover:from-red-700 hover:to-red-800 transition flex items-center text-xs font-bold shadow-md">
-                                    <i class="fas fa-shipping-fast mr-1.5"></i> 🚀 Buat Resi J&T (Auto AWB)
+                                    <i class="fas fa-truck-loading mr-1.5"></i> 📦 Request Pick Up & Buat Resi J&T
                                 </button>
                             </form>
                         @endif
