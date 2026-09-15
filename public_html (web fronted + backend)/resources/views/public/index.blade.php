@@ -478,7 +478,13 @@ function heroSlider() {
                     <h3 class="text-base font-semibold text-gray-900 mb-1 group-hover:text-[#16782d] transition-colors">
                         {{ $product->nama_produk }}
                     </h3>
-                    <p class="text-xs text-gray-500 mb-2">{{ $product->isi_ml }} {{ $product->berat }}</p>
+                    <p class="text-xs text-gray-500 mb-2">
+                        @if($product->isi_ml)
+                            {{ $product->isi_ml }} ml
+                        @elseif($product->berat)
+                            {{ (float)$product->berat }} gr
+                        @endif
+                    </p>
 
                     <div class="mb-3 flex-grow space-y-1.5 text-xs text-gray-600">
                         <div class="flex items-center">
@@ -502,7 +508,6 @@ function heroSlider() {
                     </div>
 
                     <div class="mt-auto">
-                        @auth
                         <div class="flex items-center justify-between mb-2">
                             <p class="text-[#16782d] font-bold text-base">
                                 Rp{{ number_format($product->harga, 0, ',', '.') }}
@@ -513,7 +518,6 @@ function heroSlider() {
                             </p>
                             @endif
                         </div>
-                        @endauth
 
                         <div class="relative">
                             <div class="flex items-center my-2">
