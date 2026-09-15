@@ -509,9 +509,12 @@ function heroSlider() {
 
                     <div class="mt-auto">
                         <div class="flex items-center justify-between mb-2">
-                            <p class="text-[#16782d] font-bold text-base">
-                                Rp{{ number_format($product->harga, 0, ',', '.') }}
-                            </p>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-[#16782d] font-bold text-base">
+                                    Rp{{ number_format($product->harga_pcs, 0, ',', '.') }}
+                                </span>
+                                <span class="text-xs text-gray-500 font-normal">/ pcs</span>
+                            </div>
                             @if($product->old_price)
                             <p class="text-gray-400 text-xs line-through">
                                 Rp{{ number_format($product->old_price, 0, ',', '.') }}

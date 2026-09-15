@@ -98,7 +98,7 @@
                     <div class="mt-auto">
                         <div class="flex items-center justify-between mb-2 md:mb-3">
                             <p class="text-[#16782d] font-bold text-xs md:text-sm">
-                                Rp{{ number_format($product->harga, 0, ',', '.') }}
+                                Rp{{ number_format($product->harga_pcs, 0, ',', '.') }} <span class="text-[10px] text-gray-500 font-normal">/ pcs</span>
                             </p>
                             @if($product->old_price)
                             <p class="text-gray-400 text-[10px] md:text-xs line-through">

@@ -37,6 +37,8 @@ scp "$LocalRoot\resources\views\public\trackings\nota.blade.php" "$RemoteTarget/
 scp "$LocalRoot\resources\views\public\trackings\enota.blade.php" "$RemoteTarget/resources/views/public/trackings/"
 scp "$LocalRoot\resources\views\public\layouts\footer.blade.php" "$RemoteTarget/resources/views/public/layouts/"
 scp "$LocalRoot\resources\views\public\index.blade.php" "$RemoteTarget/resources/views/public/"
+scp "$LocalRoot\resources\views\public\products\index.blade.php" "$RemoteTarget/resources/views/public/products/"
+scp "$LocalRoot\resources\views\public\products\by-category.blade.php" "$RemoteTarget/resources/views/public/products/"
 scp "$LocalRoot\resources\views\public\products\detail.blade.php" "$RemoteTarget/resources/views/public/products/"
 scp "$LocalRoot\app\Http\Middleware\CheckUserIsActive.php" "$RemoteTarget/app/Http/Middleware/"
 scp "$LocalRoot\app\Http\Controllers\Api\AuthController.php" "$RemoteTarget/app/Http/Controllers/Api/"

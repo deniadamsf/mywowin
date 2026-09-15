@@ -101,7 +101,7 @@
                 </h3>
                 <p class="text-gray-500 text-[10px] md:text-xs mb-1">{{ $product->isi_ml }} ml</p>
                 <p class="text-[#16782d] font-bold text-xs md:text-sm mt-1">
-                    Rp{{ number_format($product->harga, 0, ',', '.') }}
+                    Rp{{ number_format($product->harga_pcs, 0, ',', '.') }} <span class="text-[10px] text-gray-500 font-normal">/ pcs</span>
                 </p>
             </div>
         </a>
