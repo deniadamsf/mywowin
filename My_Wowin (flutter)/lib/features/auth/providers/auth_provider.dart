@@ -45,8 +45,8 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  // Tambahkan parameter rememberMe
-  Future<bool> login(String username, String password, {bool rememberMe = false}) async {
+  // Tambahkan parameter rememberMe (default true untuk persistensi dan kompatibilitas)
+  Future<bool> login(String username, String password, {bool rememberMe = true}) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
@@ -63,17 +63,34 @@ class AuthNotifier extends Notifier<AuthState> {
       final responseData = json.decode(response.body);
 
       if (response.statusCode == 200 && responseData['token'] != null) {
+        final token = responseData['token'].toString();
 
-        // Hanya simpan token ke brankas HP secara permanen JIKA 'Ingat Saya' dicentang
-        if (rememberMe) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('auth_token', responseData['token']);
+        // Selalu simpan token ke SharedPreferences agar seluruh fitur aplikasi
+        // (Profil, Keranjang, Checkout, Riwayat, Chat) dapat mengakses API
+        // dan sesi login tidak ter-logout sendiri saat membuka ulang aplikasi.
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', token);
+
+        // Sinkronisasi FCM token perangkat ke server untuk notifikasi push real-time
+        final deviceFcmToken = prefs.getString('device_fcm_token');
+        if (deviceFcmToken != null && deviceFcmToken.isNotEmpty) {
+          try {
+            http.post(
+              Uri.parse('$baseUrl/fcm-token'),
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: json.encode({'fcm_token': deviceFcmToken}),
+            );
+          } catch (_) {}
         }
 
         state = state.copyWith(
             isLoading: false,
             isAuthenticated: true,
-            token: responseData['token']
+            token: token
         );
         return true;
       } else {
@@ -96,11 +113,14 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
+    await prefs.remove('cached_user_profile');
     state = AuthState();
   }
 
   // Fungsi tambahan untuk login otomatis dari halaman OTP
-  void manualLogin(String token) {
+  Future<void> manualLogin(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', token);
     state = state.copyWith(
         isLoading: false,
         isAuthenticated: true,

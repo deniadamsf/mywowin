@@ -41,9 +41,9 @@
             <div class="mb-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Detail Penerima</h2>
                 <div class="border-b border-gray-200 pb-4">
-                    <p class="font-medium text-gray-800">{{ $user->nama_lengkap }} - {{ $membership->no_hp }}</p>
-                    <p class="text-gray-700 mt-1">{{ $membership->nama_toko }} | {{ $membership->nama_sales }}</p>
-                    <p class="text-gray-600 text-sm mt-1">{{ $membership->alamat }}</p>
+                    <p class="font-medium text-gray-800">{{ $user->nama_lengkap }} - {{ $membership?->no_hp ?? '081216301220' }}</p>
+                    <p class="text-gray-700 mt-1">{{ $membership?->nama_toko ?? 'Toko Mitra Wowin' }} | {{ $membership?->nama_sales ?? 'Pusat Wowin' }}</p>
+                    <p class="text-gray-600 text-sm mt-1">{{ $membership?->alamat ?? 'Jl. Raya Trenggalek - Tulungagung No. KM 07, Pogalan, Trenggalek, Jawa Timur 66371' }}</p>
                 </div>
             </div>
             <br>
@@ -139,7 +139,7 @@
          @else
             <h3 class="font-bold text-sm text-gray-800">{{ $itemName }}</h3>
             <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md inline-block mt-1">
-            Unit: <strong>{{ Str::ucfirst($cart->unit) }}</strong>
+            Unit: <strong>{{ Str::ucfirst($cart->unit ?? 'Karton') }}</strong>
             </span>
         @endif
 

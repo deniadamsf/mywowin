@@ -342,7 +342,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   }
 
   Future<void> _openWhatsApp([String? customMessage]) async {
-    const String waNumber = '6281216301220';
+    const String waNumber = '62812106600';
     final String text = customMessage ?? 'Halo Admin Wowin Food, saya ingin bertanya seputar produk dan promo kemitraan di aplikasi.';
     final Uri httpsUri = Uri.parse('https://wa.me/$waNumber?text=${Uri.encodeComponent(text)}');
     final Uri appUri = Uri.parse('whatsapp://send?phone=$waNumber&text=${Uri.encodeComponent(text)}');
@@ -362,7 +362,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Tidak dapat membuka WhatsApp otomatis. Hubungi WA: 081216301220'),
+              content: Text('Tidak dapat membuka WhatsApp otomatis. Hubungi WA: 0812106600'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -535,7 +535,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
             // Tab 1: Live Chat
             authState.isAuthenticated
-                ? const LiveChatScreen(showBackButton: false)
+                ? LiveChatScreen(showBackButton: false, isActive: _selectedIndex == 1)
                 : _buildLoginRequiredView('Live Chat Mitra', Icons.chat_bubble_outline_rounded),
 
             // Tab 2: Riwayat Pesanan

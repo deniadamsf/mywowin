@@ -207,11 +207,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Icon(Icons.chat_rounded, color: Colors.white, size: 20),
               ),
               title: const Text('WhatsApp Customer Care', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              subtitle: const Text('0812-1630-1220 (Respon Cepat)', style: TextStyle(fontSize: 12, color: Colors.black54)),
+              subtitle: const Text('0812-106600 (Respon Cepat)', style: TextStyle(fontSize: 12, color: Colors.black54)),
               trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF25D366)),
               onTap: () async {
                 Navigator.pop(ctx);
-                const String waNumber = '6281216301220';
+                const String waNumber = '62812106600';
                 const String text = 'Halo Tim CS Wowin Food, saya membutuhkan bantuan seputar akun/aplikasi/pesanan saya.';
                 final Uri httpsUri = Uri.parse('https://wa.me/$waNumber?text=${Uri.encodeComponent(text)}');
                 final Uri appUri = Uri.parse('whatsapp://send?phone=$waNumber&text=${Uri.encodeComponent(text)}');
@@ -340,7 +340,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       '6. Kontak & Layanan Data',
                       'Apabila Anda memiliki pertanyaan mengenai Kebijakan Privasi ini atau pengelolaan data Anda, silakan hubungi kami melalui:\n'
                       '• Email: cs@mywowin.com / admin@mywowin.com\n'
-                      '• WhatsApp Resmi: 081216301220\n'
+                      '• WhatsApp Resmi: 0812106600\n'
                       '• Kantor: PT Wowin Purnomo Putera',
                     ),
                     const SizedBox(height: 20),
@@ -1358,7 +1358,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         onTap: () async {
                           await ref.read(authProvider.notifier).logout();
                           if (context.mounted) {
-                            Navigator.pop(context);
+                            setState(() {
+                              _userData = null;
+                            });
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            }
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Anda telah keluar dari akun.'), backgroundColor: Colors.grey));
                           }
                         },

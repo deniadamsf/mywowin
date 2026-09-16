@@ -319,6 +319,17 @@
                                                                 class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring focus:ring-[#16782d] focus:border-[#16782d]">
                                                         </div>
                                                         <div class="md:col-span-2">
+                                                            <label class="block text-sm font-medium text-gray-700 mb-1">Custom URL Slug (SEO)</label>
+                                                            <div class="flex items-center">
+                                                                <span class="inline-flex items-center px-3 py-2 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs sm:text-sm">
+                                                                    mywowin.com/artikels/
+                                                                </span>
+                                                                <input type="text" name="slug" value="{{ $artikel->slug }}" placeholder="otomatis-dari-judul"
+                                                                    class="w-full border border-gray-300 rounded-r-md px-3 py-2 focus:ring focus:ring-[#16782d] focus:border-[#16782d] text-sm">
+                                                            </div>
+                                                            <p class="text-xs text-gray-500 mt-1">Kosongkan jika ingin dibuat otomatis dari judul.</p>
+                                                        </div>
+                                                        <div class="md:col-span-2">
                                                             <label class="block text-sm font-medium text-gray-700 mb-1">Isi Artikel</label>
                                                             <textarea name="isi" rows="6" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring focus:ring-[#16782d] focus:border-[#16782d]">{{ $artikel->isi }}</textarea>
                                                         </div>

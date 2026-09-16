@@ -381,10 +381,10 @@
                 <!-- KODE SORTIR / ROUTING -->
                 <div class="routing-box">
                     <div class="sort-code">
-                        {{ $order->jnt_des_code ?? 'SUB' }}
+                        {{ $order->jnt_des_code ?: (\App\Services\JntService::resolveDestinationAndArea($order->alamat ?? '', $order->user->kantor_cabang ?? null)['destination_code'] ?? 'TGK') }}
                     </div>
                     <div class="origin-dest">
-                        <span>ASAL: <strong>{{ config('jnt.shipper.origin_code', 'SUB') }}</strong></span><br>
+                        <span>ASAL: <strong>{{ config('jnt.shipper.origin_code', 'TGK') }}</strong></span><br>
                         <span>LAYANAN: <strong>REGULER (EZ)</strong></span>
                     </div>
                 </div>

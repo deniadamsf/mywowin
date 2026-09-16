@@ -243,8 +243,8 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                                 <span>cs@mywowin.com</span>
                             </a>
-                            <a href="https://wa.me/6281216301220" target="_blank" class="w-full sm:w-auto px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-2">
-                                <span>WhatsApp Resmi: 0812-1630-1220</span>
+                            <a href="https://wa.me/62812106600" target="_blank" class="w-full sm:w-auto px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-2">
+                                <span>WhatsApp Resmi: 0812-10-6600</span>
                             </a>
                         </div>
                     </section>

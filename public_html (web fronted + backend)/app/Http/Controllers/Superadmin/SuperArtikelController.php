@@ -45,6 +45,7 @@ class SuperArtikelController extends Controller
 {
     $request->validate([
         'judul' => 'required|string|max:255',
+        'slug' => 'nullable|string|max:255',
         'foto_utama' => 'required|image|max:2048',
         'tipe_blok' => 'required|array',
         'konten_isi.*' => 'nullable',
@@ -82,10 +83,14 @@ class SuperArtikelController extends Controller
         }
     }
 
+    $slug = $request->filled('slug') ? Str::slug($request->slug) : Str::slug($request->judul);
+    $slug = Artikel::generateUniqueSlug($slug);
+
     Artikel::create([
         'id' => (string) Str::uuid(),
         'user_id' => Auth::id(),
         'judul' => $request->judul,
+        'slug' => $slug,
         'isi' => $contentData, 
         'foto_artikel' => $semuaFoto, // Simpan array yang berisi SEMUA gambar
     ]);
@@ -96,6 +101,7 @@ public function update(Request $request, Artikel $artikel)
     {
         $request->validate([
             'judul' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255',
             'foto_artikel.*' => 'nullable|image',
             'replace_image_block.*' => 'nullable|image',
             'konten_isi.*' => 'nullable',
@@ -147,8 +153,12 @@ public function update(Request $request, Artikel $artikel)
             }
         }
 
+        $slug = $request->filled('slug') ? Str::slug($request->slug) : ($artikel->slug ?: Str::slug($request->judul));
+        $slug = Artikel::generateUniqueSlug($slug, $artikel->id);
+
         $artikel->update([
             'judul' => $request->judul,
+            'slug' => $slug,
             'isi' => $newIsi,
             'foto_artikel' => array_values(array_unique(array_filter($fotoSekarang))),
         ]);

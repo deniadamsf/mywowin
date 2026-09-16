@@ -77,7 +77,10 @@
         $waMethod = $paymentMethods->firstWhere('code', 'wa');
         $codMethod = $paymentMethods->firstWhere('code', 'cod');
         $bankAccounts = $transferMethod ? ($transferMethod->config['bank_accounts'] ?? []) : [];
-        $waNumber = $waMethod ? ($waMethod->config['phone_number'] ?? '6281216301220') : '6281216301220';
+        $waNumber = $waMethod ? ($waMethod->config['phone_number'] ?? '62812106600') : '62812106600';
+        if ($waNumber === '6281216301220') {
+            $waNumber = '62812106600';
+        }
         $toggleRoute = route($prefix . 'payment_methods.toggle');
         $updateWaRoute = route($prefix . 'payment_methods.update_wa');
         $addBankRoute = route($prefix . 'payment_methods.bank_accounts.add');
@@ -208,9 +211,9 @@
                             </span>
                             <input type="text" name="phone_number" value="{{ $waNumber }}" 
                                 class="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-[#16782d] focus:border-[#16782d] transition"
-                                placeholder="6281216301220" required>
+                                placeholder="62812106600" required>
                         </div>
-                        <p class="text-[11px] text-gray-500 mt-1">Gunakan kode negara (contoh: <b>6281216301220</b>). Nomor ini akan menerima pesan rincian pesanan dari pembeli.</p>
+                        <p class="text-[11px] text-gray-500 mt-1">Gunakan kode negara (contoh: <b>62812106600</b>). Nomor ini akan menerima pesan rincian pesanan dari pembeli.</p>
                     </div>
 
                     <div class="flex items-center gap-3 pt-2">

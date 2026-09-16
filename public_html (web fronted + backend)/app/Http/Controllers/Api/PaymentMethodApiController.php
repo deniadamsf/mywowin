@@ -10,9 +10,7 @@ class PaymentMethodApiController extends Controller
 {
     public function index()
     {
-        $methods = PaymentMethod::where('is_active', true)
-            ->orderBy('sort_order')
-            ->get();
+        $methods = PaymentMethod::orderBy('sort_order')->get();
 
         $formatted = $methods->map(function ($m) {
             $data = [
@@ -45,6 +43,7 @@ class PaymentMethodApiController extends Controller
 
         return response()->json([
             'status' => 'success',
+            'success' => true,
             'data' => $formatted,
             'shipping_voucher' => $voucherData,
         ], 200);

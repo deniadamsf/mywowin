@@ -62,8 +62,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       code: 'wa',
       name: 'Pesan via WhatsApp',
       description: 'Langsung terhubung dengan Admin Wowin',
-      isActive: true,
-      phoneNumber: '6281216301220',
+      isActive: false,
+      phoneNumber: '62812106600',
     ),
   ];
 
@@ -110,7 +110,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
-        if (data['success'] == true && data['data'] != null && data['data'] is List) {
+        final bool isSuccess = data['success'] == true || data['status'] == 'success';
+        if (isSuccess && data['data'] != null && data['data'] is List) {
           final List<dynamic> list = data['data'];
           await CacheService.savePaymentMethods(list);
           if (mounted) {
@@ -1179,7 +1180,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final waMethod = _paymentMethods.where((m) => m.code == 'wa').firstOrNull;
     final String waNumber = (waMethod != null && waMethod.phoneNumber != null && waMethod.phoneNumber!.trim().isNotEmpty)
         ? waMethod.phoneNumber!.trim()
-        : '6281216301220';
+        : '62812106600';
     final dynamic membership = _userProfile?['membership'];
     final String nama = (membership != null && membership['nama_toko'] != null && membership['nama_toko'].toString().trim().isNotEmpty)
         ? membership['nama_toko'].toString()
@@ -1384,8 +1385,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ],
                               const SizedBox(height: 8),
                               Text(
-                                'Catatan: Silakan transfer tepat $formattedTotal lalu konfirmasi via WhatsApp.',
-                                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey.shade700),
+                                'Tenggat Waktu: 24 Jam. Silakan transfer tepat $formattedTotal lalu unggah foto bukti transfer di Detail Pesanan.',
+                                style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF0D47A1), fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -1477,7 +1478,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       icon: const Icon(Icons.chat_rounded, color: Color(0xFF2E7D32), size: 18),
                       label: Text(
                         paymentMethod == 'transfer'
-                            ? 'Konfirmasi Bayar via WhatsApp'
+                            ? 'Bantuan Admin via WhatsApp'
                             : (paymentMethod == 'cod' ? 'Hubungi Admin via WhatsApp' : 'Kirim Pesanan ke WhatsApp'),
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       ),
@@ -1485,7 +1486,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Tombol Ke Riwayat Pesanan (Tombol Utama)
+                  // Tombol Ke Riwayat Pesanan / Unggah Bukti (Tombol Utama)
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -1506,10 +1507,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ),
                         );
                       },
-                      icon: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 18),
-                      label: const Text(
-                        'Lihat Riwayat & Lacak Pesanan',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                      icon: Icon(
+                        paymentMethod == 'transfer' ? Icons.upload_file_rounded : Icons.receipt_long_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      label: Text(
+                        paymentMethod == 'transfer'
+                            ? 'Unggah Bukti Transfer Sekarang'
+                            : 'Lihat Riwayat & Lacak Pesanan',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
                   ),
@@ -1577,7 +1584,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final waMethod = _paymentMethods.where((m) => m.code == 'wa').firstOrNull;
     final String waNumber = (waMethod != null && waMethod.phoneNumber != null && waMethod.phoneNumber!.trim().isNotEmpty)
         ? waMethod.phoneNumber!.trim()
-        : '6281216301220';
+        : '62812106600';
     final dynamic membership = _userProfile?['membership'];
     final String nama = (membership != null && membership['nama_toko'] != null && membership['nama_toko'].toString().trim().isNotEmpty)
         ? membership['nama_toko'].toString()

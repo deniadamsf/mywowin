@@ -568,4 +568,23 @@ class AuthController extends Controller
         }
         return response()->json(['success' => false, 'message' => 'Gagal. Data membership tidak ditemukan.'], 400);
     }
+
+    /**
+     * Memperbarui FCM Token pengguna untuk Push Notification Real-Time
+     */
+    public function updateFcmToken(Request $request)
+    {
+        $request->validate([
+            'fcm_token' => 'required|string',
+        ]);
+
+        $request->user()->update([
+            'fcm_token' => $request->fcm_token,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'FCM Token berhasil diperbarui'
+        ], 200);
+    }
 }

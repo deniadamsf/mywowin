@@ -1,8 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'core/constants/api_constants.dart';
+import 'features/chat/providers/chat_provider.dart';
 import 'features/splash/screens/splash_screen.dart';
 // WAJIB IMPORT HALAMAN CHAT-NYA DI SINI:
 import 'features/chat/screens/live_chat_screen.dart';
@@ -29,14 +34,14 @@ void main() async {
   );
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  ConsumerState<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends ConsumerState<MyApp> {
   @override
   void initState() {
     super.initState();
@@ -49,6 +54,28 @@ class _MyAppState extends State<MyApp> {
       navigatorKey.currentState!.push(
         MaterialPageRoute(builder: (context) => const LiveChatScreen()),
       );
+    }
+  }
+
+  // Kirim FCM Token ke backend agar push notification balasan CS dapat sampai
+  Future<void> _syncFcmToken(String token) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('device_fcm_token', token);
+      final authToken = prefs.getString('auth_token');
+      if (authToken != null && authToken.isNotEmpty) {
+        await http.post(
+          Uri.parse('$baseUrl/fcm-token'),
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $authToken',
+          },
+          body: json.encode({'fcm_token': token}),
+        ).timeout(const Duration(seconds: 6));
+      }
+    } catch (e) {
+      debugPrint("Error sinkronisasi FCM Token: $e");
     }
   }
 
@@ -66,7 +93,17 @@ class _MyAppState extends State<MyApp> {
       debugPrint("=================================");
       debugPrint("FCM TOKEN HP INI: $token");
       debugPrint("=================================");
+      if (token != null && token.isNotEmpty) {
+        _syncFcmToken(token);
+      }
     }
+
+    // Tangani jika ada pergantian token FCM dari Google
+    messaging.onTokenRefresh.listen((newToken) {
+      if (newToken.isNotEmpty) {
+        _syncFcmToken(newToken);
+      }
+    });
 
     // --- KONDISI 1: NOTIFIKASI DIKLIK SAAT APLIKASI BERJALAN DI BACKGROUND ---
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
@@ -85,6 +122,9 @@ class _MyAppState extends State<MyApp> {
 
     // --- KONDISI 3: PESAN MASUK SAAT APLIKASI SEDANG DIBUKA (FOREGROUND) ---
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // Refresh chat secara langsung jika ada pesan baru
+      ref.read(chatProvider.notifier).fetchChats(silent: true);
+
       if (message.notification != null) {
         if (!mounted) return;
         // Tampilkan Snackbar yang BISA DIKLIK tombol "Buka"-nya

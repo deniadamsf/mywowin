@@ -1,12 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>footer</title>
-</head>
-<body>
    <section class="bg-gradient-to-r from-green-100 to-green-50 text-gray-200 py-12 px-4 max-w-[1250px] mx-auto rounded-xl">
         <div class="pl-6 pr-6 md:pl-10 md:pr-10">
             <h1 class="text-lg font-bold text-gray-600 mb-2">
@@ -129,7 +120,3 @@
             </div>
         </div>
     </footer>
-    
-    
-</body>
-</html>

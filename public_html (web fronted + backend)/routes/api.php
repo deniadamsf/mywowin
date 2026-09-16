@@ -60,14 +60,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/checkout', [\App\Http\Controllers\Api\OrderController::class, 'checkout']);
     Route::get('/orders', [\App\Http\Controllers\Api\OrderController::class, 'history']); 
     Route::get('/orders/{id}/tracking', [\App\Http\Controllers\Api\OrderController::class, 'tracking']); 
+    Route::get('/orders/{id}/track-live', [\App\Http\Controllers\Api\OrderController::class, 'liveTracking']); 
+    Route::post('/orders/{id}/upload-proof', [\App\Http\Controllers\Api\OrderController::class, 'uploadProof']); 
     
     // Rute Rating & Ulasan Pesanan
     Route::post('/orders/{id}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'store']);
     Route::get('/orders/{id}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'showByOrder']);
     
-    // Rute API Live Chat
+    // Rute API Live Chat & FCM Push Notification
     Route::get('/chats', [ChatController::class, 'index']);
     Route::post('/chats', [ChatController::class, 'store']);
+    Route::post('/fcm-token', [\App\Http\Controllers\Api\AuthController::class, 'updateFcmToken']);
     
     Route::get('/notifications', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
     // --- RUTE PENGAJUAN MEMBER MITRA ---

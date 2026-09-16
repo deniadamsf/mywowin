@@ -274,9 +274,31 @@
                         <li>
                             <a href="{{ route('superadmin.orders.index') }}" 
                                class="flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-all duration-200 
-                                      {{ request()->is('superadmin/orders') ? 'text-purple-700 bg-purple-50 font-medium' : 'text-gray-600 hover:bg-gray-100' }}">
-                                
+                                      {{ request()->is('superadmin/orders') && !request('payment_status') ? 'text-purple-700 bg-purple-50 font-medium' : 'text-gray-600 hover:bg-gray-100' }}">
                                 <span>Master Order</span>
+                            </a>
+                        </li>
+                        <li>
+                            @php
+                                $sidebarPendingTfCount = \App\Models\Order::where('payment_status', 'waiting_confirmation')
+                                    ->orWhere(function ($q) {
+                                        $q->where('status', 'pending')
+                                          ->whereNotNull('bukti_transfer')
+                                          ->where('payment_status', '!=', 'paid');
+                                    })->count();
+                            @endphp
+                            <a href="{{ route('superadmin.orders.index', ['payment_status' => 'waiting_confirmation']) }}" 
+                               class="flex items-center justify-between px-3 py-2 text-sm rounded-md transition-all duration-200 
+                                      {{ request('payment_status') === 'waiting_confirmation' ? 'text-purple-700 bg-purple-50 font-medium' : 'text-gray-600 hover:bg-gray-100' }}">
+                                <span class="flex items-center gap-1.5">
+                                    <i class="fas fa-money-check-alt text-xs text-amber-600"></i>
+                                    <span>Verifikasi Bayar</span>
+                                </span>
+                                @if($sidebarPendingTfCount > 0)
+                                    <span class="px-2 py-0.5 text-[10px] font-extrabold bg-amber-500 text-white rounded-full animate-pulse">
+                                        {{ $sidebarPendingTfCount }}
+                                    </span>
+                                @endif
                             </a>
                         </li>
                     </ul>

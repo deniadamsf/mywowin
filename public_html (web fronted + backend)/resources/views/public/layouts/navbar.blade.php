@@ -1,39 +1,4 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title') | My Wowin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            primary: '#0e6a24',
-                            secondary: '#fff301',
-                            accent: '#47d107',
-                            dark: '#0a4d1a',
-                            light: '#e6f7ea'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Montserrat', 'sans-serif'],
-                        display: ['"Playfair Display"', 'serif']
-                    },
-                    boxShadow: {
-                        'navbar': '0 4px 12px rgba(0, 0, 0, 0.08)',
-                        'dropdown': '0 10px 25px rgba(0, 0, 0, 0.1)'
-                    }
-                }
-            }
-        }
-    </script>    
-</head>
-<body class="font-sans bg-white text-gray-800">
-    <!-- Announcement Bar -->
+<!-- Announcement Bar -->
     {{-- <div class="bg-brand-secondary text-brand-dark text-xs md:text-sm py-2 px-4 text-center font-medium">
         Dapatkan diskon 25% untuk pembelian pertama dengan kode: <span class="font-semibold">WOWIN25</span>
     </div> --}}
@@ -457,5 +422,3 @@
             }
         });
     </script>
-</body>
-</html>

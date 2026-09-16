@@ -64,10 +64,14 @@ class PaymentMethod extends Model
     }
 
     /**
-     * Ambil nomor WhatsApp admin
+     * Ambil nomor WhatsApp admin resmi (berakhiran 6600)
      */
     public function getWaNumber(): string
     {
-        return $this->config['phone_number'] ?? '6281216301220';
+        $num = $this->config['phone_number'] ?? '62812106600';
+        if ($num === '6281216301220' || empty($num)) {
+            return '62812106600';
+        }
+        return $num;
     }
 }

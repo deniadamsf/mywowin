@@ -1,0 +1,22 @@
+Order
+Key	: AKe62df84bJ3d8e4b1hea2R45j11klsb
+Username	: SUB-PT-WOWINFOOD
+Api Key	: 0ZFJJM
+Production Environment Endpoint	: https://ecommerce.jntexpress.id/jts-idn-ecommerce-api/api/order/create
+
+Tariff Check
+Key	: 8yz0HYv4puRV
+Customer Name	: SUB-PT-WOWINFOOD
+Production Environment Endpoint	: https://partner-track.jet.co.id/jandt_track/inquiry.action
+
+Track
+Basic Authorization
+Username/e-companny ID	: SUB-PT-WOWINFOOD
+Password Track	: 8yz0HYv4puRV
+Production Environment Endpoint	: https://secure-jk.jet.co.id/jandt-order-web/track/trackAction!tracking.action
+
+Cancellation
+Key	: AKe62df84bJ3d8e4b1hea2R45j11klsb
+Username	: SUB-PT-WOWINFOOD
+Api Key	: 0ZFJJM
+Production Environment Endpoint	: https://api.jet.co.id/jts-idn-ecommerce-api/api/order/cancel

@@ -153,7 +153,7 @@
                         <span>Kirim Permohonan Hapus Akun</span>
                     </button>
 
-                    <a href="https://wa.me/6281216301220?text={{ urlencode('Halo Admin Wowin Food, saya ingin bantuan permohonan penutupan akun saya.') }}"
+                    <a href="https://wa.me/62812106600?text={{ urlencode('Halo Admin Wowin Food, saya ingin bantuan permohonan penutupan akun saya.') }}"
                        target="_blank"
                        class="text-xs text-gray-500 hover:text-[#16782d] font-semibold flex items-center space-x-1.5 transition-colors">
                         <span>Butuh bantuan cepat? Hubungi CS WhatsApp</span>

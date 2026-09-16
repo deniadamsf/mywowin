@@ -44,6 +44,32 @@ class OrderController extends Controller
     {
         $user = Auth::user(); // User yang sedang login
         $membership = Membership::where('user_id', $user->id)->first();
+        if (!$membership) {
+            try {
+                $membership = Membership::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'nama_toko' => $user->nama_lengkap ?? $user->username ?? 'Toko Mitra Wowin',
+                        'alamat' => 'Jl. Raya Trenggalek - Tulungagung No. KM 07, Pogalan, Trenggalek, Jawa Timur 66371',
+                        'no_hp' => $user->no_hp ?? $user->no_telp ?? '081216301220',
+                        'nama_sales' => 'Pusat Wowin',
+                        'level_membership' => 'Bronze',
+                        'status_acc' => 'approved',
+                    ]
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Gagal auto-create membership di index: ' . $e->getMessage());
+                $membership = new Membership([
+                    'user_id' => $user->id,
+                    'nama_toko' => $user->nama_lengkap ?? $user->username ?? 'Toko Mitra Wowin',
+                    'alamat' => 'Jl. Raya Trenggalek - Tulungagung No. KM 07, Pogalan, Trenggalek, Jawa Timur 66371',
+                    'no_hp' => $user->no_hp ?? $user->no_telp ?? '081216301220',
+                    'nama_sales' => 'Pusat Wowin',
+                    'level_membership' => 'Bronze',
+                    'status_acc' => 'approved',
+                ]);
+            }
+        }
     
         $subtotal = 0;
         $cartItems = collect(); // Kosong dulu
@@ -58,6 +84,10 @@ class OrderController extends Controller
                 $cartItems->push((object)[
                     'product' => $product,
                     'quantity' => 1,
+                    'bundling_id' => null,
+                    'bundling' => null,
+                    'unit' => 'karton',
+                    'price' => $product->harga,
                 ]);
                 $subtotal = $product->harga;
             }
@@ -142,6 +172,32 @@ class OrderController extends Controller
     
         $user = Auth::user();
         $membership = $user->membership;
+        if (!$membership) {
+            try {
+                $membership = Membership::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'nama_toko' => $user->nama_lengkap ?? $user->username ?? 'Toko Mitra Wowin',
+                        'alamat' => 'Jl. Raya Trenggalek - Tulungagung No. KM 07, Pogalan, Trenggalek, Jawa Timur 66371',
+                        'no_hp' => $user->no_hp ?? $user->no_telp ?? '081216301220',
+                        'nama_sales' => 'Pusat Wowin',
+                        'level_membership' => 'Bronze',
+                        'status_acc' => 'approved',
+                    ]
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Gagal auto-create membership di store: ' . $e->getMessage());
+                $membership = new Membership([
+                    'user_id' => $user->id,
+                    'nama_toko' => $user->nama_lengkap ?? $user->username ?? 'Toko Mitra Wowin',
+                    'alamat' => 'Jl. Raya Trenggalek - Tulungagung No. KM 07, Pogalan, Trenggalek, Jawa Timur 66371',
+                    'no_hp' => $user->no_hp ?? $user->no_telp ?? '081216301220',
+                    'nama_sales' => 'Pusat Wowin',
+                    'level_membership' => 'Bronze',
+                    'status_acc' => 'approved',
+                ]);
+            }
+        }
         
         // Cek jika ada produk quick buy di session
         $cartItems = collect();
@@ -156,6 +212,10 @@ class OrderController extends Controller
                 $cartItems->push((object)[
                     'product' => $product,
                     'quantity' => 1,
+                    'bundling_id' => null,
+                    'bundling' => null,
+                    'unit' => 'karton',
+                    'price' => $product->harga,
                 ]);
                 $subtotal = $product->harga;
             }
@@ -226,6 +286,7 @@ class OrderController extends Controller
             'bukti_transfer' => null,
             'payment_method' => $paymentMethod,
             'payment_status' => 'pending',
+            'payment_deadline' => ($paymentMethod === 'transfer') ? \Carbon\Carbon::now()->addHours(24) : null,
             'alamat' => $membership->alamat ?? '-',
             'catatan' => $request->input('catatan'),
             'paid_amount' => $total,
@@ -253,7 +314,7 @@ foreach ($cartItems as $cart) {
             'order_id'     => $order->id,
             'product_id'   => $product->id_product,
             'bundling_id'  => null,
-            'product_name' => $product->nama_produk . ' (' . Str::ucfirst($cart->unit) . ')',
+            'product_name' => $product->nama_produk . ' (' . Str::ucfirst($cart->unit ?? 'karton') . ')',
             'quantity'     => $cart->quantity,
             'price'        => $cart->price,
         ]);
@@ -266,7 +327,8 @@ foreach ($cartItems as $cart) {
     
         // Redirect dengan sukses dan ID pesanan
         return redirect()->route('public.trackings.index', ['id' => $order->id])
-            ->with('orders', 'Pesanan berhasil dibuat.');
+            ->with('orders', 'Pesanan berhasil dibuat.')
+            ->with('new_order_id', $order->id);
     }
     
     public function quickBuy($productId)
@@ -308,15 +370,19 @@ foreach ($cartItems as $cart) {
     // 1. Hitung Quantity HANYA untuk produk yang satuannya KARTON
     // (Bundling dilewati, Produk satuan Pcs juga dilewati)
     $kartonOnlyCount = $cartItems->filter(function($item) {
-        return $item->bundling_id === null && $item->unit === 'karton';
+        $bundlingId = $item->bundling_id ?? null;
+        $unit = strtolower((string)($item->unit ?? 'karton'));
+        return empty($bundlingId) && $unit === 'karton';
     })->sum('quantity');
 
     // 2. Hitung Subtotal HANYA untuk produk yang satuannya KARTON
     // (Karena kamu bilang Pcs nggak dapet diskon, maka subtotal Pcs jangan ikut dikalikan diskon)
     $kartonOnlySubtotal = $cartItems->filter(function($item) {
-        return $item->bundling_id === null && $item->unit === 'karton';
+        $bundlingId = $item->bundling_id ?? null;
+        $unit = strtolower((string)($item->unit ?? 'karton'));
+        return empty($bundlingId) && $unit === 'karton';
     })->sum(function($item) {
-        return $item->price * $item->quantity;
+        return ($item->price ?? 0) * ($item->quantity ?? 1);
     });
 
     // 3. Tentukan persen diskon berdasarkan jumlah KARTON

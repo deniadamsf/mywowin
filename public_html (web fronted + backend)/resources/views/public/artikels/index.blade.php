@@ -209,11 +209,11 @@
                         <!-- Meta Info -->
                         <div class="flex items-center gap-5 pt-4">
                             <div class="flex items-center gap-3">
-                                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-[#16782d] to-green-700 flex items-center justify-center text-white font-bold text-base shadow-md">
-                                    {{ strtoupper(substr($featured->user->nama_lengkap ?? 'A', 0, 1)) }}
+                                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-[#16782d] to-green-700 flex items-center justify-center text-white font-black text-base shadow-md">
+                                    W
                                 </div>
                                 <div>
-                                    <p class="font-semibold text-gray-900 text-sm">{{ $featured->user->nama_lengkap ?? 'Admin' }}</p>
+                                    <p class="font-semibold text-gray-900 text-sm">Penulis Wowin Food</p>
                                     <p class="text-xs text-gray-500 font-medium">{{ $featured->created_at->format('d M Y') }}</p>
                                 </div>
                             </div>
@@ -228,7 +228,7 @@
                         
                         <!-- CTA Button -->
                         <div class="pt-2">
-                            <a href="{{ route('public.artikels.show', ['id' => $featured->id, 'slug' => \Illuminate\Support\Str::slug($featured->judul)])}}" 
+                            <a href="{{ route('public.artikels.show', $featured->slug ?? $featured->id) }}" 
                                class="premium-btn inline-flex items-center gap-2.5 px-7 py-3.5 text-white text-sm font-semibold rounded-xl transition-all duration-300 group">
                                 Read Article
                                 <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -350,7 +350,7 @@
                             
                             <!-- Title -->
                             <h3 class="text-xl font-bold text-gray-900 mb-3 leading-tight line-clamp-2 hover:text-[#16782d] transition-colors duration-300">
-                                <a href="{{ route('public.artikels.show', ['id' => $artikel->id, 'slug' => \Illuminate\Support\Str::slug($artikel->judul)]) }}">
+                                <a href="{{ route('public.artikels.show', $artikel->slug ?? $artikel->id) }}">
                                     {{ $artikel->judul }}
                                 </a>
                             </h3>
@@ -363,15 +363,15 @@
                             <!-- Footer -->
                             <div class="flex items-center justify-between pt-5 border-t border-gray-100">
                                 <div class="flex items-center gap-2.5">
-                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#16782d] to-green-700 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                        {{ strtoupper(substr($artikel->user->nama_lengkap ?? 'A', 0, 1)) }}
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#16782d] to-green-700 flex items-center justify-center text-white text-xs font-black shadow-sm">
+                                        W
                                     </div>
-                                    <span class="text-xs font-semibold text-gray-700 truncate max-w-[110px]">
-                                        {{ $artikel->user->nama_lengkap ?? 'Admin' }}
+                                    <span class="text-xs font-semibold text-gray-700 truncate max-w-[140px]">
+                                        Penulis Wowin Food
                                     </span>
                                 </div>
                                 
-                                <a href="{{ route('public.artikels.show', ['id' => $artikel->id, 'slug' => \Illuminate\Support\Str::slug($artikel->judul)]) }}" 
+                                <a href="{{ route('public.artikels.show', $artikel->slug ?? $artikel->id) }}" 
                                    class="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-50 hover:bg-[#16782d] text-gray-600 hover:text-white transition-all duration-300 group">
                                     <svg class="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3" />

@@ -649,7 +649,7 @@
                         <div class="mt-8 bg-gradient-to-r from-green-700 to-green-900 p-6 rounded-xl shadow-md text-center">
                             <h3 class="text-xl font-bold text-white mb-2">Butuh Bantuan?</h3>
                             <p class="text-green-100 mb-4">Tim support kami siap membantu Anda 24/7</p>
-                            <a href="https://api.whatsapp.com/send?phone=6281216301220&text=Hai%2C%20Min%20Wow%21%20Saya%20butuh%20bantuan%20terkait%20pesanan%20saya" class="inline-block bg-white text-green-800 font-semibold py-3 px-6 rounded-lg hover:bg-green-50 transition duration-300">
+                            <a href="https://api.whatsapp.com/send?phone=62812106600&text=Hai%2C%20Min%20Wow%21%20Saya%20butuh%20bantuan%20terkait%20pesanan%20saya" class="inline-block bg-white text-green-800 font-semibold py-3 px-6 rounded-lg hover:bg-green-50 transition duration-300">
                                 Hubungi Kami
                             </a>
                         </div>

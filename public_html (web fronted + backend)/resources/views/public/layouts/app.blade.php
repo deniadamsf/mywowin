@@ -1,16 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-    
     <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-4V2W4R81Q7"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-4V2W4R81Q7');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4V2W4R81Q7"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-4V2W4R81Q7');
+    </script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,29 +20,59 @@
     {{-- META DESCRIPTION DINAMIS --}}
     <meta name="description" content="@yield('meta_description', 'Platform resmi member dan agen Wowin Food.')">
 
-    {{-- OPEN GRAPH --}}
+    {{-- CANONICAL URL --}}
+    <link rel="canonical" href="@yield('canonical_url', url()->current())" />
+
+    {{-- OPEN GRAPH SEO --}}
+    <meta property="og:site_name" content="My Wowin" />
+    <meta property="og:type" content="@yield('og_type', 'website')" />
+    <meta property="og:url" content="@yield('canonical_url', url()->current())" />
     <meta property="og:title" content="@yield('title', 'MyWowin')" />
     <meta property="og:description" content="@yield('meta_description', 'Platform resmi member Wowin.')" />
     <meta property="og:image" content="@yield('meta_image', asset('images/logo-wowin.png'))" /> 
 
+    {{-- TWITTER CARD SEO --}}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@yield('title', 'MyWowin')" />
+    <meta name="twitter:description" content="@yield('meta_description', 'Platform resmi member Wowin.')" />
+    <meta name="twitter:image" content="@yield('meta_image', asset('images/logo-wowin.png'))" />
+
+    {{-- STRUCTURED DATA (SCHEMA.ORG JSON-LD FOR GOOGLE RICH RESULTS) --}}
+    @yield('structured_data')
+
     @yield('head')
-    <!-- Import Font Roboto dari Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Import Fonts Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Icons: FontAwesome & RemixIcon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="//unpkg.com/alpinejs" defer></script>
-    <!-- Di dalam <head> -->
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
-       
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-      <!-- Konfigurasi Tailwind untuk Font Roboto -->
-      <script>
+    <!-- Konfigurasi Tailwind Terpadu -->
+    <script>
         tailwind.config = {
             theme: {
                 extend: {
+                    colors: {
+                        brand: {
+                            primary: '#0e6a24',
+                            secondary: '#fff301',
+                            accent: '#47d107',
+                            dark: '#0a4d1a',
+                            light: '#e6f7ea'
+                        }
+                    },
                     fontFamily: {
-                        sans: ['Roboto', 'sans-serif'],
+                        sans: ['Montserrat', 'Roboto', 'sans-serif'],
+                        display: ['"Playfair Display"', 'serif']
+                    },
+                    boxShadow: {
+                        'navbar': '0 4px 12px rgba(0, 0, 0, 0.08)',
+                        'dropdown': '0 10px 25px rgba(0, 0, 0, 0.1)'
                     }
                 }
             }
@@ -53,48 +81,6 @@
 </head>
 <body class="bg-[#fff] font-sans">
     @include('public.layouts.navbar')
-
-    @if(session('orders'))
-<div x-data="{ open: true }" x-show="open" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 backdrop-blur-sm">
-    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm relative overflow-hidden">
-        <!-- Dekorasi blur -->
-        <div class="absolute -right-16 -top-16 w-32 h-32 bg-green-400 opacity-20 rounded-full blur-xl"></div>
-        <div class="absolute -left-16 -bottom-16 w-32 h-32 bg-emerald-400 opacity-20 rounded-full blur-xl"></div>
-        
-        <!-- Tombol close -->
-        <button @click="open = false" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-        </button>
-
-        <!-- Isi modal -->
-        <div class="text-center relative z-10">
-            <h2 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-green-500 mb-2">
-                Pesanan Berhasil Dibuat! 🎉
-            </h2>
-            <p class="text-gray-700 mb-4">
-                Terima kasih telah memesan. Segera konfirmasi pesanan Anda melalui WhatsApp!
-            </p>
-
-            <!-- Ilustrasi sukses -->
-            <img src="{{ asset('images/wlcm.webp') }}" alt="Success" class="h-32 mx-auto mb-4">
-
-          <!-- Tombol WA -->
-            <a href="https://wa.me/62812106600?text={{ urlencode('Halo admin, saya ingin konfirmasi terkait pesanan atas nama ' . $order->user->nama_lengkap . ' dengan nomor invoice ' . $order->invoice_number . ', terimakasih') }}" 
-               target="_blank"
-               class="block w-full py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition mb-3">
-                Konfirmasi via WhatsApp 📲
-            </a>
-
-            <!-- Tombol Lanjutkan -->
-            <button @click="open = false" class="w-full py-3 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition">
-                Tutup
-            </button>
-        </div>
-    </div>
-</div>
-@endif
 
 
     @if(session('success') || session('welcome_back'))

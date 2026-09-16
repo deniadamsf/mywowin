@@ -78,6 +78,7 @@ class ArtikelController extends Controller
     {
         $request->validate([
             'judul' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255',
             'isi' => 'required|string',
             'foto_artikel' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
         ]);
@@ -90,8 +91,12 @@ class ArtikelController extends Controller
             $artikel->foto_artikel = $request->file('foto_artikel')->store('foto_artikel', 'public');
         }
 
+        $slug = $request->filled('slug') ? Str::slug($request->slug) : ($artikel->slug ?: Str::slug($request->judul));
+        $slug = Artikel::generateUniqueSlug($slug, $artikel->id);
+
         $artikel->update([
             'judul' => $request->judul,
+            'slug' => $slug,
             'isi' => $request->isi,
             'foto_artikel' => $artikel->foto_artikel,
         ]);

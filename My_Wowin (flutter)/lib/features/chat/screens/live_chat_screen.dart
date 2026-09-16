@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -6,31 +7,83 @@ import '../providers/chat_provider.dart';
 
 class LiveChatScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
-  const LiveChatScreen({super.key, this.showBackButton = true});
+  final bool isActive;
+  const LiveChatScreen({
+    super.key,
+    this.showBackButton = true,
+    this.isActive = true,
+  });
 
   @override
   ConsumerState<LiveChatScreen> createState() => _LiveChatScreenState();
 }
 
-class _LiveChatScreenState extends ConsumerState<LiveChatScreen> {
+class _LiveChatScreenState extends ConsumerState<LiveChatScreen> with WidgetsBindingObserver {
   static const Color primaryGreen = WowinColors.primaryDark;
 
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
-    // Tarik data chat saat layar dibuka
+    WidgetsBinding.instance.addObserver(this);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(chatProvider.notifier).fetchChats().then((_) {
-        _scrollToBottom();
-      });
+      if (widget.isActive) {
+        _startPolling();
+      }
     });
   }
 
   @override
+  void didUpdateWidget(covariant LiveChatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive) {
+      if (widget.isActive) {
+        _startPolling();
+      } else {
+        _stopPolling();
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (widget.isActive) {
+        _startPolling();
+      }
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _stopPolling();
+    }
+  }
+
+  void _startPolling() {
+    _stopPolling();
+    // Tarik langsung pesan terbaru saat aktif
+    ref.read(chatProvider.notifier).fetchChats().then((_) {
+      _scrollToBottom();
+    });
+
+    // Polling hening setiap 2 detik untuk memastikan chat masuk secara real-time
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted && widget.isActive) {
+        ref.read(chatProvider.notifier).fetchChats(silent: true);
+      }
+    });
+  }
+
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopPolling();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -39,11 +92,13 @@ class _LiveChatScreenState extends ConsumerState<LiveChatScreen> {
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       Future.delayed(const Duration(milliseconds: 100), () {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
       });
     }
   }
@@ -139,6 +194,15 @@ class _LiveChatScreenState extends ConsumerState<LiveChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Otomatis scroll ke bawah saat pesan baru masuk dari admin / CS
+    ref.listen<ChatState>(chatProvider, (previous, next) {
+      final prevCount = previous?.messages.length ?? 0;
+      final nextCount = next.messages.length;
+      if (nextCount > prevCount) {
+        _scrollToBottom();
+      }
+    });
+
     final chatState = ref.watch(chatProvider);
 
     return Scaffold(

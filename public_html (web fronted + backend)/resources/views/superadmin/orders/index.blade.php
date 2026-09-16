@@ -403,7 +403,7 @@
                             </td>
                             <td class="px-6 py-4">
                                 <div class="flex justify-center items-center gap-1.5">
-                                    @if(!empty($order->no_resi))
+                                    @if(!empty($order->no_resi) && $order->shipping_status !== 'Resi Dibatalkan')
                                         <!-- Tombol Cepat Cetak Label Thermal J&T -->
                                         <a href="{{ route('superadmin.orders.jnt-label', $order->id) }}" target="_blank" class="px-2.5 py-1.5 text-white text-xs bg-emerald-600 rounded-md hover:bg-emerald-700 transition flex items-center shadow-xs font-semibold" title="Cetak Label Thermal J&T">
                                             <i class="fas fa-barcode mr-1"></i> Label
@@ -790,8 +790,8 @@
                             <i class="fas fa-print mr-1.5"></i> Cetak Nota
                         </a>
 
-                        @if(!empty($order->no_resi))
-                            <!-- Tombol Cetak Label Thermal J&T -->
+                        @if(!empty($order->no_resi) && $order->shipping_status !== 'Resi Dibatalkan')
+                            <!-- Tombol Cetak Thermal Label J&T -->
                             <a href="{{ route('superadmin.orders.jnt-label', $order->id) }}" target="_blank" class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center text-xs font-semibold shadow-sm">
                                 <i class="fas fa-barcode mr-1.5"></i> 🖨️ Cetak Label J&T (Thermal)
                             </a>

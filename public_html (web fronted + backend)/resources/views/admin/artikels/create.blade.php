@@ -107,61 +107,107 @@
         <h1 class="text-center font-semibold text-xl text-gray-800">INPUT DATA ARTIKEL</h1>
         <p class="text-center text-gray-500 mb-8">Silahkan mengisi inputan dibawah ini untuk menambahkan artikel baru</p>
 
-        <form action="{{ route('admin.artikels.store') }}" method="POST" enctype="multipart/form-data" class="mx-auto max-w-4xl">
+        <form action="{{ route('admin.artikels.store') }}" method="POST" enctype="multipart/form-data" class="mx-auto max-w-6xl">
             @csrf
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-gray-50 p-4 rounded-xl">
-                    <label for="judul" class="block text-gray-700 font-medium mb-2 flex items-center">
-                        <i class="fas fa-heading text-[#16782d] mr-2"></i>
-                        Judul Artikel
-                    </label>
-                    <input type="text" name="judul" id="judul" value="{{ old('judul') }}" required 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16782d] focus:border-[#16782d]" />
-                    @error('judul')
-                        <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
-                    @enderror
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {{-- Kolom Input Konten (8 Kolom) --}}
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 p-4 rounded-xl">
+                            <label for="judul" class="block text-gray-700 font-medium mb-2 flex items-center">
+                                <i class="fas fa-heading text-[#16782d] mr-2"></i>
+                                Judul Artikel
+                            </label>
+                            <input type="text" name="judul" id="judul" value="{{ old('judul') }}" required 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16782d] focus:border-[#16782d]" />
+                            @error('judul')
+                                <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="bg-gray-50 p-4 rounded-xl">
+                            <label for="foto_artikel" class="block text-gray-700 font-medium mb-2 flex items-center">
+                                <i class="fas fa-image text-[#16782d] mr-2"></i>
+                                Gambar Artikel
+                            </label>
+                            <input type="file" name="foto_artikel" id="foto_artikel" accept="image/*" required 
+                                class="w-full border border-gray-300 rounded-lg p-2" />
+                            @error('foto_artikel')
+                                <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="bg-gray-50 p-4 rounded-xl md:col-span-2">
+                            <label for="slug" class="block text-gray-700 font-medium mb-2 flex items-center">
+                                <i class="fas fa-link text-[#16782d] mr-2"></i>
+                                Custom Slug URL (SEO)
+                            </label>
+                            <input type="text" name="slug" id="slug" value="{{ old('slug') }}" 
+                                placeholder="contoh: supplier-kecap-manis-jerigen-murah (kosongkan untuk otomatis dari judul)"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16782d] focus:border-[#16782d]" />
+                            <p class="text-xs text-gray-400 mt-1 italic">*Opsional. Jika dikosongkan, URL otomatis digenerate dari judul artikel.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-xl">
+                        <label for="isi" class="block text-gray-700 font-medium mb-2 flex items-center">
+                            <i class="fas fa-align-left text-[#16782d] mr-2"></i>
+                            Konten Artikel
+                        </label>
+                        <textarea name="isi" id="isi" rows="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg">{{ old('isi') }}</textarea>
+                        @error('isi')
+                            <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit" class="w-full bg-[#16782d] hover:bg-[#145f24] text-white py-3 rounded-xl shadow-lg transition-all font-semibold">
+                            <i class="fas fa-save mr-2"></i> Simpan Artikel
+                        </button>
+                    </div>
                 </div>
 
-                <div class="bg-gray-50 p-4 rounded-xl">
-                    <label for="foto_artikel" class="block text-gray-700 font-medium mb-2 flex items-center">
-                        <i class="fas fa-image text-[#16782d] mr-2"></i>
-                        Gambar Artikel
-                    </label>
-                    <input type="file" name="foto_artikel" id="foto_artikel" accept="image/*" required 
-                        class="w-full border border-gray-300 rounded-lg p-2" />
-                    @error('foto_artikel')
-                        <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
-                    @enderror
+                {{-- Kolom Widget Rank Math SEO (5 Kolom) --}}
+                <div class="lg:col-span-5 space-y-6">
+                    @include('components.rank-math-analyzer')
                 </div>
-            </div>
-
-            <div class="mt-6 bg-gray-50 p-4 rounded-xl">
-                <label for="isi" class="block text-gray-700 font-medium mb-2 flex items-center">
-                    <i class="fas fa-align-left text-[#16782d] mr-2"></i>
-                    Konten Artikel
-                </label>
-                <textarea name="isi" id="isi" rows="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg">{{ old('isi') }}</textarea>
-                @error('isi')
-                    <div class="text-red-500 text-sm mt-1">{{ $message }}</div>
-                @enderror
-            </div>
-
-            <div class="mt-6 text-center">
-                <button type="submit" class="bg-[#16782d] hover:bg-[#145f24] text-white px-6 py-2 rounded-lg shadow transition-all">
-                    <i class="fas fa-save mr-2"></i> Simpan Artikel
-                </button>
             </div>
         </form>
 
         <script>
+            let adminEditor;
             ClassicEditor
                 .create(document.querySelector('#isi'), {
                     toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'undo', 'redo']
                 })
+                .then(editor => {
+                    adminEditor = editor;
+                    editor.model.document.on('change:data', () => {
+                        if (typeof rmRunAudit === 'function') rmRunAudit();
+                    });
+                    if (typeof rmRunAudit === 'function') rmRunAudit();
+                })
                 .catch(error => {
                     console.error(error);
                 });
+
+            if (window.RankMathState) {
+                window.RankMathState.getContentCallback = function() {
+                    return adminEditor ? adminEditor.getData() : '';
+                };
+                window.RankMathState.getMediaCountCallback = function() {
+                    const photo = document.getElementById('foto_artikel');
+                    return (photo && photo.files && photo.files.length > 0) ? 1 : 0;
+                };
+            }
+
+            const photoEl = document.getElementById('foto_artikel');
+            if (photoEl) {
+                photoEl.addEventListener('change', function() {
+                    if (typeof rmRunAudit === 'function') rmRunAudit();
+                });
+            }
         </script>
     </div>
 </div>

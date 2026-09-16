@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/wowin_theme.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
@@ -17,9 +18,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
 
   bool _isObscure = true;
-  bool _rememberMe = false;
+  bool _rememberMe = true;
 
   static const Color wowinGreen = WowinColors.primary;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedUsername = prefs.getString('saved_username');
+      final rememberMePref = prefs.getBool('remember_me_pref');
+      if (mounted) {
+        setState(() {
+          if (rememberMePref != null) {
+            _rememberMe = rememberMePref;
+          }
+          if (_rememberMe && savedUsername != null && savedUsername.isNotEmpty) {
+            _usernameController.text = savedUsername;
+          }
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -46,6 +71,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
 
     if (success) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('remember_me_pref', _rememberMe);
+        if (_rememberMe) {
+          await prefs.setString('saved_username', username);
+        } else {
+          await prefs.remove('saved_username');
+        }
+      } catch (_) {}
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login Berhasil! Selamat berbelanja.'), backgroundColor: wowinGreen),
@@ -163,7 +198,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text('Ingat Saya', style: TextStyle(fontSize: 14, color: Colors.grey.shade700)),
+                            GestureDetector(
+                              onTap: () => setState(() => _rememberMe = !_rememberMe),
+                              child: Text('Ingat Saya', style: TextStyle(fontSize: 14, color: Colors.grey.shade700)),
+                            ),
                             const Spacer(),
                             TextButton(
                               onPressed: () {

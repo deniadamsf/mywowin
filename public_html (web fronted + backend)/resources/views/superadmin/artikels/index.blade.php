@@ -384,6 +384,18 @@
                 class="w-full border border-gray-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-purple-500 outline-none transition text-sm">
         </div>
 
+        <div class="md:col-span-2">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Custom URL Slug (SEO Friendly)</label>
+            <div class="flex items-center">
+                <span class="inline-flex items-center px-3 py-2 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-xs sm:text-sm">
+                    mywowin.com/artikels/
+                </span>
+                <input type="text" name="slug" value="{{ $artikel->slug }}" placeholder="otomatis-dari-judul"
+                    class="w-full border border-gray-200 rounded-r-xl px-4 py-2 focus:ring-2 focus:ring-purple-500 outline-none transition text-sm">
+            </div>
+            <p class="text-xs text-gray-400 mt-1">Kosongkan jika ingin generate otomatis dari judul. Format URL bersih tanpa spasi/simbol.</p>
+        </div>
+
         <div class="space-y-4">
             <label class="block text-sm font-semibold text-gray-700">Editor Konten Berurutan</label>
             <div class="space-y-4 bg-gray-50 p-4 rounded-2xl border border-gray-200">

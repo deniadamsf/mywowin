@@ -88,9 +88,9 @@ Route::get('/reset-password', [ForgotPasswordController::class, 'showResetForm']
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])->name('password.update.manual');
 Route::post('/reset-password/send-otp', [ForgotPasswordController::class, 'sendResetOtp'])->name('password.send.otp')->middleware('throttle:5,1');
 
-// Home Page
+// Artikel Page
 Route::get('/artikels', [PublicArtikelController::class, 'index'])->name('artikels');
-Route::get('/artikels/{id?}', [PublicArtikelController::class, 'show'])->name('public.artikels.show');
+Route::get('/artikels/{slug}', [PublicArtikelController::class, 'show'])->name('public.artikels.show');
 
 Route::get('/carts/add/{productId}', [CartController::class, 'addToCart'])->name('carts.add');
 
@@ -148,6 +148,8 @@ Route::get('/quick-buy/{productId}', [OrderController::class, 'quickBuy'])->name
 
 Route::get('/trackings', [TrackingController::class, 'index'])->name('public.trackings.index');
 Route::get('/trackings/{id}', [TrackingController::class, 'show'])->name('public.trackings.show');
+Route::get('/trackings/{id}/live', [TrackingController::class, 'liveTracking'])->name('public.trackings.live');
+Route::post('/trackings/{id}/upload-proof', [TrackingController::class, 'uploadProof'])->name('public.trackings.upload-proof')->middleware('auth');
 Route::get('/nota/{id}', [TrackingController::class, 'showNota'])->name('public.trackings.nota');
 
 
@@ -247,6 +249,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'is_admin'])->group(
     Route::post('orders/{id}/jnt-generate', [AdminOrderController::class, 'generateJntAwb'])->name('orders.jnt-generate');
     Route::post('orders/{id}/jnt-cancel', [AdminOrderController::class, 'cancelJntAwb'])->name('orders.jnt-cancel');
     Route::get('orders/{id}/jnt-label', [AdminOrderController::class, 'printShippingLabel'])->name('orders.jnt-label');
+    Route::post('orders/{id}/confirm-payment', [AdminOrderController::class, 'confirmPayment'])->name('orders.confirm-payment');
+    Route::post('orders/{id}/reject-payment', [AdminOrderController::class, 'rejectPayment'])->name('orders.reject-payment');
+    Route::post('orders/cleanup-proofs', [AdminOrderController::class, 'cleanupOldProofs'])->name('orders.cleanup-proofs');
 
     //settings
     Route::resource('settings', AdminSettingsController::class);
@@ -341,6 +346,9 @@ Route::delete('/superadmin/artikels/{artikel}/hapus-foto', [SuperArtikelControll
     Route::post('orders/{id}/jnt-generate', [SuperOrderController::class, 'generateJntAwb'])->name('orders.jnt-generate');
     Route::post('orders/{id}/jnt-cancel', [SuperOrderController::class, 'cancelJntAwb'])->name('orders.jnt-cancel');
     Route::get('orders/{id}/jnt-label', [SuperOrderController::class, 'printShippingLabel'])->name('orders.jnt-label');
+    Route::post('orders/{id}/confirm-payment', [SuperOrderController::class, 'confirmPayment'])->name('orders.confirm-payment');
+    Route::post('orders/{id}/reject-payment', [SuperOrderController::class, 'rejectPayment'])->name('orders.reject-payment');
+    Route::post('orders/cleanup-proofs', [SuperOrderController::class, 'cleanupOldProofs'])->name('orders.cleanup-proofs');
     
     // BENAR (Hapus duplikasi)
     Route::get('/users/{user}/upgrade', [SuperUsersController::class, 'showUpgradeForm'])->name('users.upgrade.form');

@@ -22,7 +22,10 @@ class SuperOrderController extends Controller
      */
     public function index(Request $request)
     {
-       $query = Order::with(['user', 'orderItems']);
+        // Batalkan otomatis pesanan transfer yang telah melewati 24 jam
+        Order::cancelExpiredOrders();
+
+        $query = Order::with(['user', 'orderItems']);
     
         // Apply date range filter
         if ($request->filled('start_date') && $request->filled('end_date')) {
@@ -44,7 +47,18 @@ class SuperOrderController extends Controller
     
         // Apply payment status filter
         if ($request->filled('payment_status')) {
-            $query->where('payment_status', $request->payment_status);
+            if ($request->payment_status === 'waiting_confirmation') {
+                $query->where(function ($q) {
+                    $q->where('payment_status', 'waiting_confirmation')
+                      ->orWhere(function ($sub) {
+                          $sub->where('status', 'pending')
+                              ->whereNotNull('bukti_transfer')
+                              ->where('payment_status', '!=', 'paid');
+                      });
+                });
+            } else {
+                $query->where('payment_status', $request->payment_status);
+            }
         }
     
         // Apply search if present
@@ -58,11 +72,21 @@ class SuperOrderController extends Controller
             });
         }
     
+        // Hitung berapa pesanan yang membutuhkan verifikasi pembayaran
+        $pendingVerificationsCount = Order::where(function ($q) {
+            $q->where('payment_status', 'waiting_confirmation')
+              ->orWhere(function ($sub) {
+                  $sub->where('status', 'pending')
+                      ->whereNotNull('bukti_transfer')
+                      ->where('payment_status', '!=', 'paid');
+              });
+        })->count();
+
         // Get the paginated results
         $orders = $query->latest()->paginate(10);
     
         // Pass to the view
-        return view('superadmin.orders.index', compact('orders'));
+        return view('superadmin.orders.index', compact('orders', 'pendingVerificationsCount'));
     }
     
 
@@ -491,5 +515,61 @@ public function exportExcel(Request $request)
         $branchSettings = \App\Models\BranchSetting::all()->keyBy('enum_value');
 
         return view('admin.orders.bulk_shipping_label', compact('orders', 'branchSettings'));
+    }
+
+    /**
+     * Setujui / Konfirmasi Pembayaran Bukti Transfer
+     */
+    public function confirmPayment(Request $request, $id)
+    {
+        $order = Order::findOrFail($id);
+        $order->update([
+            'payment_status'   => 'paid',
+            'status'           => ($order->status === 'pending' || $order->status === 'canceled') ? 'paid' : $order->status,
+            'paid_amount'      => $order->total,
+            'paid_at'          => now(),
+            'rejection_reason' => null,
+        ]);
+
+        return redirect()->back()->with('success', "Pembayaran pesanan #{$order->invoice_number} berhasil diverifikasi dan disetujui.");
+    }
+
+    /**
+     * Tolak Bukti Transfer Pembayaran
+     */
+    public function rejectPayment(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500',
+        ], [
+            'reason.required' => 'Alasan penolakan bukti pembayaran wajib diisi.',
+        ]);
+
+        $order = Order::findOrFail($id);
+        $order->update([
+            'payment_status'   => 'rejected',
+            'rejection_reason' => $request->reason,
+        ]);
+
+        return redirect()->back()->with('warning', "Bukti transfer pesanan #{$order->invoice_number} telah ditolak.");
+    }
+
+    /**
+     * Bersihkan Bukti Transfer yang berumur lebih dari 6 bulan secara manual
+     */
+    public function cleanupOldProofs(Request $request)
+    {
+        $months = (int) $request->input('months', 6);
+        if ($months <= 0) {
+            $months = 6;
+        }
+
+        $deletedCount = Order::cleanupOldProofs($months);
+
+        if ($deletedCount > 0) {
+            return redirect()->back()->with('success', "Berhasil membersihkan {$deletedCount} berkas bukti transfer lama (>{$months} bulan) dari server.");
+        }
+
+        return redirect()->back()->with('info', "Tidak ada berkas bukti transfer lama (>{$months} bulan) yang perlu dibersihkan.");
     }
 }

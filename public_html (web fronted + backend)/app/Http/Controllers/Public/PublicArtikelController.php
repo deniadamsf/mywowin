@@ -35,9 +35,28 @@ class PublicArtikelController extends Controller
     return view('public.artikels.index', compact('artikels'));
 }
 
-    public function show($uuid)
+    public function show($identifier)
     {
-        $artikel = Artikel::with('user')->where('id', $uuid)->firstOrFail();
+        $oldSlugMap = [
+            'cara-belanja-di-aplikasi-my-wowin-tutorial-order-grosir-mudah-hemat-2026' => 'cara-belanja-di-aplikasi-my-wowin-order-grosir-murah',
+            'keuntungan-daftar-member-my-wowin-7-benefit-eksklusif-kemitraan-2026' => 'keuntungan-daftar-member-my-wowin-benefit-mitra-grosir',
+            'cara-daftar-akun-my-wowin-panduan-lengkap-kemitraan-resmi-2026' => 'cara-daftar-akun-my-wowin-panduan-mitra-usaha-grosir',
+        ];
+
+        if (isset($oldSlugMap[$identifier])) {
+            return redirect()->route('public.artikels.show', $oldSlugMap[$identifier], 301);
+        }
+
+        $artikel = Artikel::with('user')
+            ->where('slug', $identifier)
+            ->orWhere('id', $identifier)
+            ->firstOrFail();
+
+        // Jika diakses melalui UUID lama tapi artikel punya slug SEO, redirect 301 permanen ke URL slug bersih
+        if ($identifier === $artikel->id && !empty($artikel->slug)) {
+            return redirect()->route('public.artikels.show', $artikel->slug, 301);
+        }
+
         return view('public.artikels.show', compact('artikel'));
     }
 }

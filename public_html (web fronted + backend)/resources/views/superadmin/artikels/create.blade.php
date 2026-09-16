@@ -51,12 +51,25 @@
                     </div>
 
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            <i class="fas fa-link mr-2 text-purple-600"></i> Custom Slug URL (SEO)
+                        </label>
+                        <input type="text" name="slug" value="{{ old('slug') }}"
+                            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition text-sm" 
+                            placeholder="contoh: supplier-kecap-manis-jerigen-murah">
+                        <p class="text-[11px] text-gray-400 mt-2 italic">*Opsional. Kosongkan jika ingin otomatis sesuai judul artikel.</p>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                         <label class="block text-sm font-bold text-gray-700 mb-3">
                             <i class="fas fa-image mr-2 text-purple-600"></i> Gambar Sampul (Utama)
                         </label>
                         <input type="file" name="foto_utama" accept="image/*" required class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
                         <p class="text-[10px] text-gray-400 mt-2 italic">*Ini akan muncul sebagai header artikel.</p>
                     </div>
+
+                    {{-- Widget Analisis Skor SEO Rank Math --}}
+                    @include('components.rank-math-analyzer')
                 </div>
 
                 <div class="lg:col-span-8 space-y-6">
@@ -103,17 +116,50 @@
 
 <script>
     let blockCount = 1;
+    let activeEditors = [];
+
+    // Sambungkan callback Rank Math State
+    if (window.RankMathState) {
+        window.RankMathState.getContentCallback = function() {
+            return activeEditors.map(ed => {
+                try { return ed.getData(); } catch(e) { return ''; }
+            }).join('\n');
+        };
+        window.RankMathState.getMediaCountCallback = function() {
+            let count = 0;
+            const mainPhoto = document.querySelector('input[name="foto_utama"]');
+            if (mainPhoto && mainPhoto.files && mainPhoto.files.length > 0) count++;
+            document.querySelectorAll('input[name="konten_gambar[]"]').forEach(inp => {
+                if (inp.files && inp.files.length > 0) count++;
+            });
+            return count;
+        };
+    }
 
     // Fungsi Inisialisasi CKEditor
     function initEditor(element) {
         ClassicEditor.create(element, {
             toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', '|', 'undo', 'redo'],
             placeholder: 'Tuliskan narasi Anda di sini...'
+        }).then(editor => {
+            activeEditors.push(editor);
+            editor.model.document.on('change:data', () => {
+                if (typeof rmRunAudit === 'function') rmRunAudit();
+            });
+            if (typeof rmRunAudit === 'function') rmRunAudit();
         }).catch(error => { console.error(error); });
     }
 
     // Inisialisasi blok teks pertama
     document.querySelectorAll('.editor-instance').forEach(el => initEditor(el));
+
+    // Listener foto utama
+    const mainPhotoInput = document.querySelector('input[name="foto_utama"]');
+    if (mainPhotoInput) {
+        mainPhotoInput.addEventListener('change', function() {
+            if (typeof rmRunAudit === 'function') rmRunAudit();
+        });
+    }
 
     // Fungsi Menambah Blok Baru (Teks atau Gambar)
     function addBlock(type) {
@@ -129,7 +175,7 @@
                         <span class="bg-purple-600 text-white w-5 h-5 rounded-full flex items-center justify-center mr-2 text-[10px]">${blockCount}</span>
                         Teks Selanjutnya
                     </label>
-                    <button type="button" onclick="this.closest('.block-item').remove()" class="text-red-400 hover:text-red-600 transition">
+                    <button type="button" onclick="this.closest('.block-item').remove(); if (typeof rmRunAudit === 'function') rmRunAudit();" class="text-red-400 hover:text-red-600 transition">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -146,7 +192,7 @@
                         <span class="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center mr-2 text-[10px]">${blockCount}</span>
                         Gambar Sisipan
                     </label>
-                    <button type="button" onclick="this.closest('.block-item').remove()" class="text-red-400 hover:text-red-600 transition">
+                    <button type="button" onclick="this.closest('.block-item').remove(); if (typeof rmRunAudit === 'function') rmRunAudit();" class="text-red-400 hover:text-red-600 transition">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -185,6 +231,7 @@
                 preview.src = e.target.result;
                 preview.classList.remove('hidden');
                 area.classList.add('hidden');
+                if (typeof rmRunAudit === 'function') rmRunAudit();
             }
             reader.readAsDataURL(input.files[0]);
         }

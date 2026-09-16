@@ -61,9 +61,9 @@
                         <span class="font-bold text-red-700 text-xs flex items-center gap-1.5"><i class="fas fa-truck"></i> Kurir: J&T Express (EZ)</span>
                         <div class="text-xs text-gray-800 mt-0.5">No. Resi: <strong class="select-all text-red-800">{{ $order->no_resi }}</strong> {{ !empty($order->jnt_des_code) ? '('.$order->jnt_des_code.')' : '' }}</div>
                     </div>
-                    <a href="{{ \App\Services\JntService::getTrackingUrl($order->no_resi) }}" target="_blank" class="px-2.5 py-1 bg-red-600 text-white text-xs font-bold rounded-md hover:bg-red-700 transition flex items-center gap-1">
-                        Lacak Paket &rarr;
-                    </a>
+                    <button type="button" onclick="if(typeof openLiveTrackingModal==='function'){openLiveTrackingModal({{ $order->id }}, '{{ $order->no_resi }}', '{{ $order->invoice_number }}');}else{window.open('{{ \App\Services\JntService::getTrackingUrl($order->no_resi) }}', '_blank');}" class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-md transition flex items-center gap-1 cursor-pointer">
+                        <i class="fas fa-satellite-dish"></i> Lacak Paket &rarr;
+                    </button>
                 </div>
                 @endif
             </div>
@@ -186,8 +186,11 @@
     
     {{-- LOGIKA NOMOR WA DINAMIS BERDASARKAN BRANCH SETTING PT --}}
 @php
-    // 1. Ambil nomor dari branch setting PT
-    $noTujuan = $branchSetting->no_telp ?? '6281216301220'; 
+    // 1. Ambil nomor resmi WhatsApp Wowin (berakhiran 6600)
+    $noTujuan = $branchSetting->no_telp ?? '62812106600'; 
+    if ($noTujuan === '6281216301220' || empty($noTujuan)) {
+        $noTujuan = '62812106600';
+    }
     $cleanNo = preg_replace('/[^0-9]/', '', $noTujuan);
     if (str_starts_with($cleanNo, '0')) {
         $cleanNo = '62' . substr($cleanNo, 1);

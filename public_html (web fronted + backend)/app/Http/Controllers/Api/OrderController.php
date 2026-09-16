@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Cart;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -106,6 +107,7 @@ class OrderController extends Controller
             'status' => 'pending',
             'payment_method' => $request->metode_pembayaran,
             'payment_status' => 'pending',
+            'payment_deadline' => ($request->metode_pembayaran === 'transfer') ? Carbon::now()->addHours(24) : null,
             'alamat' => $alamatPengiriman,
             'catatan' => $request->catatan,
             'paid_amount' => $total,
@@ -150,11 +152,18 @@ class OrderController extends Controller
     {
         $user = Auth::user();
         
+        // Batalkan otomatis pesanan transfer yang telah melewati batas 24 jam
+        Order::cancelExpiredOrders();
+
         // Menarik semua pesanan milik user beserta rincian barang dan gambarnya
         $orders = Order::where('user_id', $user->id)
-                       ->with(['orderItems.product.images', 'orderItems.bundling']) // <--- TAMBAHKAN BARIS INI
+                       ->with(['orderItems.product.images', 'orderItems.bundling'])
                        ->orderBy('created_at', 'desc')
-                       ->get();
+                       ->get()
+                       ->map(function ($order) {
+                           $order->bukti_transfer_url = $order->bukti_transfer ? asset('storage/' . $order->bukti_transfer) : null;
+                           return $order;
+                       });
 
         return response()->json([
             'status' => 'success',
@@ -162,10 +171,100 @@ class OrderController extends Controller
         ], 200);
     }
 
+    public function uploadProof(Request $request, $id)
+    {
+        $request->validate([
+            'bukti_transfer' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+        ], [
+            'bukti_transfer.required' => 'File bukti transfer wajib diunggah.',
+            'bukti_transfer.image'    => 'File bukti transfer harus berupa gambar.',
+            'bukti_transfer.mimes'    => 'Format gambar harus JPEG, PNG, JPG, atau WEBP.',
+            'bukti_transfer.max'      => 'Ukuran file maksimal adalah 5MB.',
+        ]);
+
+        $user = Auth::user();
+
+        // Auto-cancel yang kadaluarsa sebelum memproses
+        Order::cancelExpiredOrders();
+
+        $order = Order::where('user_id', $user->id)->findOrFail($id);
+
+        if ($order->status === 'canceled') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Pesanan telah dibatalkan karena melewati batas waktu 24 jam.',
+            ], 400);
+        }
+
+        if ($order->payment_status === 'paid' || $order->status === 'paid' || $order->status === 'completed') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Pesanan ini sudah terkonfirmasi lunas.',
+            ], 400);
+        }
+
+        // Cek apakah sudah melewati payment_deadline
+        if ($order->payment_deadline && Carbon::now()->isAfter($order->payment_deadline)) {
+            $order->update([
+                'status'         => 'canceled',
+                'payment_status' => 'expired',
+                'shipping_status'=> 'Dibatalkan Otomatis',
+            ]);
+            if ($order->points_used > 0) {
+                $user->increment('total_points', $order->points_used);
+            }
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Batas waktu pembayaran 24 jam telah berakhir. Pesanan otomatis dibatalkan.',
+            ], 400);
+        }
+
+        // Simpan file bukti transfer
+        if ($request->hasFile('bukti_transfer')) {
+            if ($order->bukti_transfer && Storage::disk('public')->exists($order->bukti_transfer)) {
+                Storage::disk('public')->delete($order->bukti_transfer);
+            }
+
+            $file = $request->file('bukti_transfer');
+            $fileName = time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('bukti_transfer', $fileName, 'public');
+
+            $order->update([
+                'bukti_transfer'   => $path,
+                'payment_status'   => 'waiting_confirmation',
+                'rejection_reason' => null, // Reset alasan penolakan jika sebelumnya ditolak
+            ]);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Bukti transfer berhasil diunggah! Mohon menunggu verifikasi dari Admin.',
+                'data'    => [
+                    'order_id'           => $order->id,
+                    'invoice_number'     => $order->invoice_number,
+                    'payment_status'     => $order->payment_status,
+                    'bukti_transfer'     => $order->bukti_transfer,
+                    'bukti_transfer_url' => asset('storage/' . $order->bukti_transfer),
+                    'payment_deadline'   => $order->payment_deadline,
+                ],
+            ], 200);
+        }
+
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Gagal mengunggah file bukti transfer.',
+        ], 400);
+    }
+
     public function tracking($id)
     {
         $user = Auth::user();
+        Order::cancelExpiredOrders();
         $order = Order::where('user_id', $user->id)->findOrFail($id);
+
+        $liveTracking = !empty($order->no_resi)
+            ? \App\Services\JntService::trackOrder($order->no_resi, $order)
+            : null;
 
         return response()->json([
             'status' => 'success',
@@ -178,7 +277,37 @@ class OrderController extends Controller
                 'total_weight_kg' => $order->total_weight_kg ?? 1.0,
                 'shipping_cost' => $order->shipping_cost ?? 0,
                 'tracking_url' => \App\Services\JntService::getTrackingUrl($order->no_resi),
+                'payment_status' => $order->payment_status,
+                'payment_deadline' => $order->payment_deadline,
+                'bukti_transfer_url' => $order->bukti_transfer ? asset('storage/' . $order->bukti_transfer) : null,
+                'rejection_reason' => $order->rejection_reason,
+                'live_tracking' => $liveTracking,
             ]
+        ], 200);
+    }
+
+    /**
+     * Endpoint pelacakan live API J&T Express untuk Aplikasi Flutter / Client
+     */
+    public function liveTracking($id)
+    {
+        $user = Auth::user();
+        Order::cancelExpiredOrders();
+        $order = Order::where('user_id', $user->id)->findOrFail($id);
+
+        if (empty($order->no_resi)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Nomor resi pengiriman untuk pesanan ini belum diterbitkan.',
+                'data' => null,
+            ], 404);
+        }
+
+        $trackingData = \App\Services\JntService::trackOrder($order->no_resi, $order);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $trackingData,
         ], 200);
     }
 

@@ -93,7 +93,7 @@ function heroSlider() {
                         @php
                             $user = auth()->user();
                             $membership = \DB::table('memberships')->where('user_id', $user->id)->first();
-                            $waNumber = '6281216301220'; // Tanpa tanda +
+                            $waNumber = '62812106600'; // Nomor resmi CS Wowin berakhiran 6600
                             $message = "Hai admin aku mau dong dibuatin banner untuk usaha ku :\n\n" .
                                     "Nama: " . $user->nama_lengkap . "\n" .
                                     "Nama Toko: " . ($membership->nama_toko ?? '-') . "\n" .
@@ -137,201 +137,161 @@ function heroSlider() {
 
 
 
-    @php
-    $isMobile = request()->header('User-Agent') && preg_match('/Mobile|Android|iPhone/', request()->header('User-Agent'));
-    $chunks = $isMobile ? $bundlings->chunk(1) : $bundlings->chunk(2);
+@if($bundlings->isNotEmpty())
+@php
+    // Jika lebih dari 1 bundling, kita duplikasi item pertama di ujung agar pada desktop (2 kolom) tidak pernah ada slot kosong!
+    $sliderItems = $bundlings->count() > 1 ? $bundlings->concat([$bundlings->first()]) : $bundlings;
+    $totalSliderCards = $sliderItems->count();
+    $totalSlides = $bundlings->count();
 @endphp
-
-<section class="mt-8 relative w-full max-w-screen-7xl mx-auto px-4 rounded-3xl">
-    <div
-        x-data="{
-    activeSlide: 1,
-    totalSlides: {{ $chunks->count() }},
-    autoSlide() {
-        this.activeSlide++;
-        if (this.activeSlide > this.totalSlides) {
-            setTimeout(() => {
-                this.activeSlide = 1;
-            }, 700); // 700ms sesuai duration
+<section class="mt-6 sm:mt-8 relative w-full max-w-7xl mx-auto px-3 sm:px-4"
+    x-data="{
+        activeSlide: 0,
+        totalSlides: {{ $totalSlides }},
+        interval: null,
+        touchStartX: 0,
+        touchEndX: 0,
+        next() {
+            this.activeSlide = (this.activeSlide + 1) % this.totalSlides;
+        },
+        prev() {
+            this.activeSlide = (this.activeSlide - 1 + this.totalSlides) % this.totalSlides;
+        },
+        goTo(index) {
+            this.activeSlide = index;
+        },
+        startAutoSlide() {
+            if (this.totalSlides > 1) {
+                this.interval = setInterval(() => this.next(), 5000);
+            }
+        },
+        stopAutoSlide() {
+            if (this.interval) {
+                clearInterval(this.interval);
+            }
+        },
+        handleTouchStart(e) {
+            this.touchStartX = e.changedTouches[0].screenX;
+        },
+        handleTouchEnd(e) {
+            this.touchEndX = e.changedTouches[0].screenX;
+            if (this.touchStartX - this.touchEndX > 45) {
+                this.next();
+            } else if (this.touchEndX - this.touchStartX > 45) {
+                this.prev();
+            }
         }
-    },
-    startAutoSlide() {
-        this.interval = setInterval(() => this.autoSlide(), 5000);
-    },
-    stopAutoSlide() {
-        clearInterval(this.interval);
-    }
-}"
-
-        x-init="startAutoSlide()"
-        @mouseover="stopAutoSlide()"
-        @mouseleave="startAutoSlide()"
-        class="relative"
-    >
-        <!-- Carousel Track -->
-      <div class="relative overflow-hidden px-8">
-    <div class="flex transition-transform duration-700 ease-in-out px-2 gap-1"
-        :style="'transform: translateX(calc(-' + (activeSlide * 99) + '%))'">
-                @foreach ($chunks as $chunk)
-                <!-- Desktop Layout: 2 cards side by side -->
-                <div class="w-full shrink-0 hidden md:flex gap-2 px-1">
-                    @foreach ($chunk as $bundling)
-                    <a href="{{ route('promo.detail', $bundling->id) }}" class="w-1/2 relative group/card">
-                        @php
-                            // Ambil ID video (handle semua format youtu.be / watch / embed)
-                            preg_match('/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([^\&\?\/]+)/', $bundling->youtube_link ?? '', $matches);
-                            $videoId = $matches[1] ?? null;
-                        @endphp
-                        <div class="overflow-hidden rounded-xl shadow-md relative">
-                           @if($videoId)
-                                {{-- Kalau ada YouTube, tampilkan iframe --}}
+    }"
+    x-init="startAutoSlide()"
+    @mouseenter="stopAutoSlide()"
+    @mouseleave="startAutoSlide()"
+    @touchstart.passive="handleTouchStart($event)"
+    @touchend.passive="handleTouchEnd($event)"
+>
+    <!-- Carousel Box -->
+    <div class="relative overflow-hidden group">
+        
+        <!-- Track -->
+        <div class="flex transition-transform duration-500 ease-in-out -mx-2 sm:-mx-2.5"
+             :style="'transform: translateX(-' + (activeSlide * (100 / {{ $totalSliderCards }})) + '%)'">
+            @foreach ($sliderItems as $bundling)
+                @php
+                    preg_match('/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([^\&\?\/]+)/', $bundling->youtube_link ?? '', $matches);
+                    $videoId = $matches[1] ?? null;
+                @endphp
+                <div class="w-full md:w-1/2 shrink-0 px-2 sm:px-2.5">
+                    <a href="{{ route('promo.detail', $bundling->id_bundling) }}" 
+                       class="block relative group/card overflow-hidden rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 bg-white">
+                        @if($videoId)
+                            <div class="w-full h-56 sm:h-64 relative bg-black">
                                 <iframe 
                                     src="https://www.youtube.com/embed/{{ $videoId }}?autoplay=1&mute=1&loop=1&playlist={{ $videoId }}" 
-                                    class="w-full h-64 object-cover"
+                                    class="w-full h-full object-cover"
                                     frameborder="0"
                                     allow="autoplay; encrypted-media"
                                     allowfullscreen>
                                 </iframe>
-                            @else
-                                {{-- Kalau tidak ada, tampilkan gambar --}}
-                                <img src="{{ asset('storage/' . $bundling->barang_bundling) }}"
-                                    alt="{{ $bundling->name }}"
-                                    class="w-full h-64 object-cover">
-                            @endif
+                            </div>
+                        @else
+                            <img src="{{ asset('storage/' . $bundling->barang_bundling) }}"
+                                 alt="{{ $bundling->nama_bundling }}"
+                                 class="w-full h-56 sm:h-64 object-cover transition-transform duration-500 group-hover/card:scale-105"
+                                 loading="lazy">
+                        @endif
 
-                            <!-- Bottom Gradient & Button -->
-                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/30 to-transparent">
-                                <div class="flex justify-between items-end px-4 py-3">
-                                    @if($bundling->period)
-                                    <p class="text-white text-xs bg-black/40 px-3 py-1 rounded-full mb-2">
-                                        *S&K Berlaku
+                        <!-- Bottom Gradient & CTA Button -->
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none">
+                            <div class="flex justify-between items-end px-3.5 sm:px-5 py-3 sm:py-3.5">
+                                @if(!empty($bundling->snk))
+                                    <p class="text-white text-[10px] sm:text-xs bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                                        *S&amp;K Berlaku
                                     </p>
-                                    @endif
-                                    <div class="bg-red-600 text-white font-bold px-5 py-2 rounded-lg shadow-lg text-sm">
-                                        KLIK DI SINI
-                                    </div>
-                                </div>
-                            </div>
+                                @else
+                                    <div></div>
+                                @endif
 
-                            @if($bundling->free_shipping)
-                            <div class="absolute top-2 right-2">
-                                <div class="bg-red-600 text-white text-[10px] px-3 py-1 rounded-lg font-bold text-center leading-tight">
-                                    BEBAS ONGKIR<br>SEPUASNYA
+                                <div class="bg-red-600 group-hover/card:bg-red-700 text-white font-bold px-4 sm:px-5 py-1.5 sm:py-2 rounded-xl shadow-lg text-xs sm:text-sm tracking-wide transition-all transform group-hover/card:scale-105 pointer-events-auto">
+                                    KLIK DI SINI
                                 </div>
                             </div>
-                            @endif
                         </div>
-                    </a>
-                    @endforeach
-                </div>
-                
-                <!-- Mobile Layout: Single cards -->
-                @foreach ($chunk as $bundling)
-                 {{-- <div class="w-[85%] shrink-0 md:hidden flex mr-3"> --}}
-                <div class="w-full shrink-0 md:hidden flex px-1">
-                    <a href="{{ route('promo.detail', $bundling->id) }}" class="w-full relative group/card">
-                        <div class="overflow-hidden rounded-xl shadow-md relative">
-                            @if($videoId)
-                                {{-- Kalau ada YouTube, tampilkan iframe --}}
-                                <iframe 
-                                    src="https://www.youtube.com/embed/{{ $videoId }}?autoplay=1&mute=1&loop=1&playlist={{ $videoId }}" 
-                                    class="w-full h-58 object-cover"
-                                    frameborder="0"
-                                    allow="autoplay; encrypted-media"
-                                    allowfullscreen>
-                                </iframe>
-                            @else
-                                {{-- Kalau tidak ada, tampilkan gambar --}}
-                                <img src="{{ asset('storage/' . $bundling->barang_bundling) }}"
-                                    alt="{{ $bundling->name }}"
-                                    class="w-full h-58 object-cover">
-                            @endif
 
-
-                            <!-- Bottom Gradient & Button -->
-                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/30 to-transparent">
-                                <div class="flex justify-between items-end px-4 py-3">
-                                    @if($bundling->period)
-                                    <p class="text-white text-xs bg-black/40 px-3 py-1 rounded-full mb-2">
-                                        *S&K Berlaku
-                                    </p>
-                                    @endif
-                                    <div class="bg-red-600 text-white font-bold px-5 py-2 rounded-lg shadow-lg text-sm">
-                                        KLIK DI SINI
-                                    </div>
-                                </div>
+                        @if(!empty($bundling->snk) && stripos($bundling->snk, 'ongkir') !== false)
+                        <div class="absolute top-2.5 right-2.5 sm:top-3 sm:right-3">
+                            <div class="bg-red-600 text-white text-[10px] sm:text-xs px-2.5 py-1 rounded-lg font-bold text-center leading-tight shadow-md">
+                                BEBAS ONGKIR<br>SEPUASNYA
                             </div>
-
-                            @if($bundling->free_shipping)
-                            <div class="absolute top-2 right-2">
-                                <div class="bg-red-600 text-white text-[10px] px-3 py-1 rounded-lg font-bold text-center leading-tight">
-                                    BEBAS ONGKIR<br>SEPUASNYA
-                                </div>
-                            </div>
-                            @endif
                         </div>
+                        @endif
                     </a>
                 </div>
-                @endforeach
-                @endforeach
-            </div>
+            @endforeach
         </div>
 
-        <!-- Navigasi Panah -->
-        <button @click="activeSlide = (activeSlide - 1 + totalSlides) % totalSlides"
-                class="absolute left-2 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition
-                       bg-white text-gray-700 p-2 rounded-full shadow hover:bg-white hover:shadow-xl">
+        @if($bundlings->count() > 1)
+        <!-- Navigasi Panah Kiri -->
+        <button @click="prev()"
+                class="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center backdrop-blur-sm transition-all duration-200 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110"
+                aria-label="Previous Slide">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
             </svg>
         </button>
-        <button @click="activeSlide = (activeSlide + 1) % totalSlides"
-                class="absolute right-2 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition
-                       bg-white text-gray-700 p-2 rounded-full shadow hover:bg-white hover:shadow-xl">
+
+        <!-- Navigasi Panah Kanan -->
+        <button @click="next()"
+                class="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center backdrop-blur-sm transition-all duration-200 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110"
+                aria-label="Next Slide">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>
+        @endif
+    </div>
+
+    <!-- Bullet Indicator & Link Lihat Semua -->
+    <div class="flex justify-between items-center mt-3 sm:mt-4 px-1">
+        <div class="flex items-center gap-1.5 sm:gap-2">
+            @foreach ($bundlings as $i => $bundling)
+                <button @click="goTo({{ $i }})"
+                        :class="activeSlide === {{ $i }} ? 'bg-[#16782d] w-6 sm:w-7' : 'bg-gray-300 hover:bg-gray-400 w-2.5 sm:w-3'"
+                        class="h-2.5 sm:h-3 rounded-full transition-all duration-300"
+                        aria-label="Slide {{ $i + 1 }}">
+                </button>
+            @endforeach
+        </div>
+        
+        <a href="{{ route('promo') }}"
+           class="inline-flex items-center gap-1.5 text-xs sm:text-sm text-[#16782d] font-semibold hover:text-[#ffcb05] transition-colors group">
+            <span>Lihat Semua Promo</span>
+            <svg class="h-4 w-4 group-hover:translate-x-1 transition-transform" xmlns="http://www.w3.org/2000/svg"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
-        </button>
-
-        <!-- Bullet & Link -->
-        <div class="flex justify-between items-center mt-6">
-            <div class="flex gap-2">
-                <!-- Desktop bullets -->
-                <div class="hidden md:flex gap-2">
-                    @for ($i = 0; $i < $chunks->count(); $i++)
-                    <button @click="activeSlide = {{ $i }}"
-                            :class="activeSlide === {{ $i }} ? 'bg-red-500' : 'bg-gray-300'"
-                            class="w-3 h-3 rounded-full transition-all duration-300"></button>
-                    @endfor
-                </div>
-                
-                <!-- Mobile bullets -->
-                <div class="md:hidden flex gap-2">
-                    @php $totalItems = 0; @endphp
-                    @foreach ($chunks as $chunk)
-                        @foreach ($chunk as $bundling)
-                            @php $totalItems++; @endphp
-                        @endforeach
-                    @endforeach
-                    
-                    @for ($i = 0; $i < $totalItems; $i++)
-                    <button @click="activeSlide = {{ $i }}"
-                            :class="activeSlide === {{ $i }} ? 'bg-red-500' : 'bg-gray-300'"
-                            class="w-3 h-3 rounded-full transition-all duration-300"></button>
-                    @endfor
-                </div>
-            </div>
-            <a href="{{ route('products') }}"
-               class="inline-flex items-center gap-1 text-sm text-[#16782d] font-semibold hover:text-[#ffcb05] transition group">
-                <span>Lihat Semua</span>
-                <svg class="h-4 w-4 group-hover:translate-x-1 transition" xmlns="http://www.w3.org/2000/svg"
-                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </a>
-        </div>
+        </a>
     </div>
 </section>
+@endif
 <section x-data="{ 
     scrollLeft() { 
         this.$refs.track.scrollLeft -= 300 

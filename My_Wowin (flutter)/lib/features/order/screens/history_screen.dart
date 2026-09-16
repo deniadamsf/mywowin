@@ -84,20 +84,47 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   // Fungsi cerdas untuk memberi warna status
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'lunas':
-      case 'dikirim':
-      case 'selesai':
-        return wowinGreen;
-      case 'batal':
-      case 'failed':
-        return Colors.red;
-      default:
-        return Colors.grey;
+  Color _getStatusColor(dynamic order) {
+    final status = (order['status'] ?? '').toString().toLowerCase();
+    final paymentStatus = (order['payment_status'] ?? '').toString().toLowerCase();
+    final hasProof = order['bukti_transfer'] != null && order['bukti_transfer'].toString().isNotEmpty;
+
+    if (status == 'canceled' || paymentStatus == 'expired') {
+      return Colors.red;
     }
+    if (paymentStatus == 'waiting_confirmation' || (hasProof && paymentStatus != 'paid' && status != 'paid')) {
+      return Colors.blue.shade700;
+    }
+    if (paymentStatus == 'rejected') {
+      return Colors.deepOrange;
+    }
+    if (paymentStatus == 'paid' || status == 'paid' || status == 'completed' || status == 'dikirim' || status == 'selesai') {
+      return wowinGreen;
+    }
+    return Colors.orange;
+  }
+
+  String _getStatusText(dynamic order) {
+    final status = (order['status'] ?? '').toString().toLowerCase();
+    final paymentStatus = (order['payment_status'] ?? '').toString().toLowerCase();
+    final hasProof = order['bukti_transfer'] != null && order['bukti_transfer'].toString().isNotEmpty;
+
+    if (status == 'canceled' || paymentStatus == 'expired') {
+      return 'DIBATALKAN';
+    }
+    if (paymentStatus == 'waiting_confirmation' || (hasProof && paymentStatus != 'paid' && status != 'paid')) {
+      return 'MENUNGGU VERIFIKASI';
+    }
+    if (paymentStatus == 'rejected') {
+      return 'BUKTI DITOLAK';
+    }
+    if (paymentStatus == 'paid' || status == 'paid' || status == 'completed' || status == 'selesai') {
+      return 'LUNAS / SELESAI';
+    }
+    if (status == 'shipped' || status == 'dikirim') {
+      return 'DIKIRIM';
+    }
+    return 'BELUM BAYAR';
   }
 
   // Fungsi untuk memformat tanggal
@@ -141,7 +168,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           itemCount: _orders.length,
           itemBuilder: (context, index) {
             final order = _orders[index];
-            final statusColor = _getStatusColor(order['status'] ?? '');
+            final statusColor = _getStatusColor(order);
+            final statusText = _getStatusText(order);
 
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
@@ -184,7 +212,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            (order['status'] ?? 'Pending').toUpperCase(),
+                            statusText,
                             style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -277,7 +305,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   onPressed: () {
                                     Navigator.push(context, MaterialPageRoute(
                                         builder: (context) => OrderDetailScreen(order: order)
-                                    ));
+                                    )).then((_) => _fetchOrderHistory());
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: wowinGreen,

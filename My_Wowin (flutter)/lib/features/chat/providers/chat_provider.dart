@@ -30,12 +30,18 @@ class ChatNotifier extends Notifier<ChatState> {
     return ChatState();
   }
 
-  // 1. Tarik Riwayat Chat
-  Future<void> fetchChats() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+  // 1. Tarik Riwayat Chat (dengan dukungan silent polling)
+  Future<void> fetchChats({bool silent = false}) async {
+    if (!silent && state.messages.isEmpty) {
+      state = state.copyWith(isLoading: true, errorMessage: null);
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
+      if (token == null || token.isEmpty) {
+        if (!silent) state = state.copyWith(isLoading: false);
+        return;
+      }
 
       final response = await http.get(
         Uri.parse('$baseUrl/chats'),
@@ -43,16 +49,32 @@ class ChatNotifier extends Notifier<ChatState> {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 6));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        state = state.copyWith(isLoading: false, messages: data['data'] ?? []);
+        final List<dynamic> newMessages = data['data'] ?? [];
+
+        // Deteksi apakah ada pesan baru atau perbedaan pesan terakhir
+        bool hasChanges = newMessages.length != state.messages.length;
+        if (!hasChanges && newMessages.isNotEmpty && state.messages.isNotEmpty) {
+          hasChanges = newMessages.last['id'] != state.messages.last['id'];
+        }
+
+        if (hasChanges || (!silent && state.messages.isEmpty)) {
+          state = state.copyWith(isLoading: false, messages: newMessages);
+        } else if (!silent) {
+          state = state.copyWith(isLoading: false);
+        }
       } else {
-        state = state.copyWith(isLoading: false, errorMessage: 'Gagal memuat pesan');
+        if (!silent) {
+          state = state.copyWith(isLoading: false, errorMessage: 'Gagal memuat pesan');
+        }
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Koneksi bermasalah');
+      if (!silent) {
+        state = state.copyWith(isLoading: false, errorMessage: 'Koneksi bermasalah');
+      }
     }
   }
 
@@ -61,6 +83,7 @@ class ChatNotifier extends Notifier<ChatState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
+      if (token == null || token.isEmpty) return false;
 
       // Tambahkan pesan secara lokal dulu agar UI terasa cepat (Optimistic UI)
       final tempMessage = {
@@ -81,8 +104,8 @@ class ChatNotifier extends Notifier<ChatState> {
       );
 
       if (response.statusCode == 201) {
-        // Tarik ulang dari server untuk memastikan ID dari database sinkron
-        await fetchChats();
+        // Tarik ulang secara hening agar ID tersinkron dengan database
+        await fetchChats(silent: true);
         return true;
       }
       return false;
