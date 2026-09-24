@@ -65,6 +65,19 @@ ehthumbs.db
 Desktop.ini
 *.log
 *.tmp
+
+# -------------------------------------------------------------------------
+# AI Agent & Tool Configs
+# -------------------------------------------------------------------------
+.claude/
+.claude_*
+CLAUDE.md
+.cursorrules
+.cursor/
+.gemini/
+.github/copilot-*
+.copilot/
+.aider*
 *.swp
 *.stackdump
 
