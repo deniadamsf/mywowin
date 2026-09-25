@@ -82,8 +82,31 @@ CLAUDE.md
 *.stackdump
 
 # -------------------------------------------------------------------------
-# Database Dumps (Sensitive Raw Production Data)
+# Database Dumps & Sensitive Data
 # -------------------------------------------------------------------------
-u259615093_mywowin.sql
+*.sql
 *.sql.gz
 *.sql.zip
+u259615093_mywowin.sql
+reset_passwords*
+update_harga_web*
+insert_artikel_*
+
+# -------------------------------------------------------------------------
+# Deploy Scripts & Private Docs
+# -------------------------------------------------------------------------
+deploy_hostinger.ps1
+deploy*.ps1
+deploy*.bat
+deploy*.sh
+FORM_API_KLIEN*
+form_api_klien*
+J&T API Test Case*
+HARGA WEB*
+Database_Wilayah*
+
+# -------------------------------------------------------------------------
+# Android Release Binaries
+# -------------------------------------------------------------------------
+*.apk
+*.aab

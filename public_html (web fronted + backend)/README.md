@@ -86,18 +86,3 @@ docker compose exec app php artisan storage:link
 # Akses → http://localhost:8000
 ```
 
-## Deploy Produksi
-
-Server: Hostinger (SSH alias `mywowin`)
-
-```bash
-ssh mywowin
-cd ~/domains/mywowin.com/public_html
-php artisan config:clear
-php artisan cache:clear
-php artisan view:clear
-php artisan route:clear
-php artisan migrate --force
-```
-
-> **Penting:** Jangan pernah jalankan `migrate:fresh`, `migrate:reset`, atau `db:seed` di server produksi.

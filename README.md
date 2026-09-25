@@ -52,13 +52,6 @@ docker compose exec app php artisan storage:link
 # phpMyAdmin → http://localhost:8080
 ```
 
-## Deploy ke Hostinger
-
-Tersedia 2 metode:
-
-1. **Otomatis via GitHub Actions** — push ke branch `main` otomatis sync ke server lewat FTPS.
-2. **Manual via SSH** — jalankan `./deploy_hostinger.ps1` dari terminal.
-
 ## Kantor Cabang
 
 Trenggalek · Kediri · Madiun · Solo · Jogja · Cirebon · Kudus · Bogor · Serang
