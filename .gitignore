@@ -9,9 +9,27 @@
 .env.*
 !.env.example
 *.key
+*.pem
+*.der
+*.cer
+*.crt
 **/firebase_credentials.json
 auth.json
 deploy.config.json
+
+# Passwords, Access Notes & Credentials
+*password*.txt
+*password*.md
+*kredensial*
+*credential*
+*akses*.txt
+*akses*.md
+*secret*.txt
+*secret*.md
+*login*.txt
+*login*.md
+database password*
+email & password*
 
 # -------------------------------------------------------------------------
 # Laravel Dependencies & Storage
